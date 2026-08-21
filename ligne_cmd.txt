@@ -1,0 +1,3 @@
+num cmd ? no_vr
+code article refsagem
+qte colis commandees no
