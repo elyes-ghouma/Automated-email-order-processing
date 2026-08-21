@@ -1,2 +1,2 @@
-{"company":null,"stockeur":null,"num_stockeur":null,"num_dep":null,"ville":null,"pays":null}
-{"company": "SAGEMCOM", "stockeur": "EZZAHRA", "num_stockeur": "600579", "num_dep": "20", "ville": "BEN AROUS", "pays": "TN"}
+{"company": null, "stockeurs": [{"stockeur": "MBG", "num_stockeur": "600578", "num_dep": "21", "ville": "BORJ GHORBEL", "pays": "TN"}]}
+{"company": "SAGEMCOM", "stockeurs": [{"stockeur": "EZZAHRA", "num_stockeur": "600579", "num_dep": "20", "ville": "BEN AROUS", "pays": "TN"}, {"stockeur": "MBG", "num_stockeur": "600578", "num_dep": "21", "ville": "BORJ GHORBEL", "pays": "TN"}]}

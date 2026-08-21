@@ -375,19 +375,58 @@ def add_client():
     clients_data=read_jsonl_file("Clients.jsonl")
     new_client=clients_data[0]
 
-    for key in new_client.keys():
-        new_client[key]=saisir(key)
+    new_client["company"]=saisir("company")
+    for key in new_client["stockeurs"][0].keys():
+        new_client["stockeurs"][0][key]=saisir(key)
 
     clients_data.append(new_client)
     append_jsonl_file(new_client,"Clients.jsonl")
 
+    print("Client added successfully!")
 
-def stocker_details(company, stocker):
+
+def add_stocker(company):
     clients_data=read_jsonl_file("Clients.jsonl")
+    found=False
+    i=0
     for client in clients_data:
         if client["company"]==company.upper():
-            if client["stockeur"]==stocker.upper():
-                return client["num_stockeur"],client["num_dep"],client["ville"],client["pays"]
+            found=True
+            break
+        i+=1
+
+    if not found:
+        print("Error: company not found!")
+        return None
+
+    new_stockeur=clients_data[0]["stockeurs"][0]
+    for key in new_stockeur.keys():
+        new_stockeur[key]=saisir(key)
+
+    client["stockeurs"].append(new_stockeur)
+    clients_data[i]=client
+    empty_file("Clients.jsonl")
+    for client in clients_data:
+        append_jsonl_file(client,"Clients.jsonl")
+
+    print("Stocker added successfully!")
+
+
+def stocker_details(company, stocker_name):
+    clients_data=read_jsonl_file("Clients.jsonl")
+    company_found=False
+    for client in clients_data:
+        if client["company"]==company.upper():
+            company_found=True
+            break
+    if not company_found:
+        print("Company",company,"is not found!")
+        return None,None,None,None
+    
+    for stockeur in client["stockeurs"]:
+        if stockeur["stockeur"]==stocker_name.upper():
+            return stockeur["num_stockeur"],stockeur["num_dep"],stockeur["ville"],stockeur["pays"]
+
     print("Error: Company and stocker couple is invalide ")
     return None,None,None,None
 
