@@ -1,6 +1,6 @@
 combien d'heures pour urgent---------
 rod dateX, detailX b numero l ordre mech l mail ++++++
-nadhem les templates -------
+nadhem les templates ++++++
 tarjem mt3 l englais lel francais --------
 hot les donnes fi fichier mech mtaychin+++++++++
 l ids b3d el result+++++++++++--
@@ -22,7 +22,10 @@ update stockerdetails++++++
 add add_stocker+++++++++
 rod l template te5dem 3al companies l mawjodin+++
 riguel 7keyet les etats (mails w orders)+++
-riguel les path mt3 files fel param
-sala7 /// mt3 l floders al9alha 7al
-riguel excel int_livr
-rod zoz functions flag w unflag w te5tar chnawa l flag li cht7oto w tna7ih 
+riguel les path mt3 files fel param+++++
+sala7 /// mt3 l floders al9alha 7al++++
+riguel excel int_livr++++++++
+rod zoz functions flag w unflag w te5tar chnawa l flag li cht7oto w tna7ih --------
+translate to french-
+create main prog or interface or whatever
+clients.json should be in the folder of work+++++

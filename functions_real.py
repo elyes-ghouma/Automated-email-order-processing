@@ -18,6 +18,30 @@ import csv
 import os
 import re
 
+
+#--------------------------Initialazing functions-----------------------------
+
+
+def init_clients(path):
+    cl=dict(company=None,stockeurs=[dict(stockeur=None,num_stockeur=None,num_dep=None,ville=None,pays=None)])
+    create_json_file(cl,path+"/Clients.jsonl")
+
+
+def set_main_folder_path(path):
+    parametres=read_json_file("parametres.json")
+
+    parametres["main_directory_path"]=path+"/"+"Vectorys Planification"
+
+    parametres["orders_directory_path"]=create_directory(parametres["main_directory_path"],"Orders")
+
+    parametres["excel_files_directory_path"]=create_directory(parametres["main_directory_path"],"Excel Files")
+
+    create_json_file(parametres,"parametres.json")
+
+
+#---------------------------files treatment functions---------------------------
+
+
 def file_existance(file_name):
     return os.path.isfile(file_name)
 
@@ -68,43 +92,6 @@ def json_to_dict(json_data):
         return parsed if isinstance(parsed, dict) else {"data": parsed}
     except json.JSONDecodeError:
         return {}
-
-
-def to_bytes(x: str) -> bytes:
-    if x.startswith("b'") or x.startswith('b"'):
-        return literal_eval(x)
-    return x.encode("utf-8")
-
-
-'''
-def read_json_file(file_name):
-    f=open(file_name,"r",encoding="utf-8",errors="ignore")
-    line=json.load(f)
-    f.close()
-    return line 
-
-
-def read_jsonl_file(file_name):
-    f=open(file_name,"r")
-    lines=[]
-    for line in f:
-        lines.append(line)
-    f.close()
-    return lines
-
-
-def dict_to_json(dict_data):
-    json_data=json.dumps(dict_data)
-    return json_data
-
-
-def json_to_dict(json_data):
-    json_data=json_data.strip()
-    dict_data=json.loads(json_data, strict=False)
-    if type(dict_data)!=type(dict()):
-        dict_data=json.loads(json_data)
-    return dict_data
-'''
 
 
 def append_jsonl_file(dict_data,jsonl_file_name):
@@ -193,6 +180,26 @@ def xl_to_csv(xl_file,csv_file):
     # or: data_str = df.to_json(orient="records") jsp
 
 
+def empty_file(file_name):
+    f=open(file_name,"w")
+    f.close()
+
+
+def create_directory(path,folder_name):
+    folder_path=path+"/"+folder_name
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+
+#---------------------------Other functions----------------------------------
+
+
+def to_bytes(x: str) -> bytes:
+    if x.startswith("b'") or x.startswith('b"'):
+        return literal_eval(x)
+    return x.encode("utf-8")
+
+
 def clean_email_text(raw_body):
     # 1. Strip out quoted email thread replies (lines starting with '>')
     lines = raw_body.splitlines()
@@ -215,6 +222,32 @@ def clean_email_text(raw_body):
 
     # 4. Normalize multiple spaces
     return " ".join(text.split())
+
+
+def day_name(date):
+    y=date[:4]
+    m=date[5:7]
+    d=date[8:10]
+    dt=datetime(int(y),int(m),int(d))
+    name=dt.strftime("%A")
+    DAYS_FR = {
+        "Monday": "Lundi",
+        "Tuesday": "Mardi",
+        "Wednesday": "Mercredi",
+        "Thursday": "Jeudi",
+        "Friday": "Vendredi",
+        "Saturday": "Samedi",
+        "Sunday": "Dimanche",
+    }
+    return DAYS_FR[name]
+
+
+def saisir(msg):
+    x=input("saisir "+msg+": ")
+    return x.upper()
+
+
+#---------------------------Agent Start function---------------------------------
 
 
 def start_ai_agent(model_name,template_path):
@@ -246,6 +279,9 @@ def start_ai_agent(model_name,template_path):
     else:
         print("template path "+template_path+" is not found!")
         os._exit()
+
+
+#----------------------------Email functions--------------------------
 
 
 def log_in():
@@ -292,11 +328,6 @@ def extract_mail_ids(mail_obj):
     return ids
 
 
-def empty_file(file_name):
-    f=open(file_name,"w")
-    f.close()
-
-
 def reply_to_mail(i):
 
     # --- STEP 1: Use IMAP to fetch details from the incoming email ---
@@ -337,61 +368,12 @@ def reply_to_mail(i):
     print("Reply sent!")
 
 
-def affiche_html(text,element):
-    pre="<"+element+">"
-    post="</"+element+">"
-    return pre+text+post
+#----------------------Client/Stocker functions---------
 
 
-def download():
-    if os.path.exists("orders.csv"):
-        return send_file(
-            "orders.csv",
-            mimetype="text/csv",
-            as_attachment=True,  # Forces browser to download instead of opening in tab
-            download_name="orders.csv",  # Optional: file name the user sees
-        )
-    else:
-        return "<h3>Error: CSV file not found!</h3>", 404
-
-
-def day_name(date):
-    y=date[:4]
-    m=date[5:7]
-    d=date[8:10]
-    dt=datetime(int(y),int(m),int(d))
-    name=dt.strftime("%A")
-    DAYS_FR = {
-        "Monday": "Lundi",
-        "Tuesday": "Mardi",
-        "Wednesday": "Mercredi",
-        "Thursday": "Jeudi",
-        "Friday": "Vendredi",
-        "Saturday": "Samedi",
-        "Sunday": "Dimanche",
-    }
-    return DAYS_FR[name]
-
-
-def create_directory(path,folder_name):
-    folder_path=path+"/"+folder_name
-    os.makedirs(folder_path, exist_ok=True)
-    return folder_path+"/"
-
-
-def create_order_directory(order_id,path):
-    folder_name="Order"+str(order_id)+"/"
-    os.makedirs(path+folder_name, exist_ok=True)
-    return path+folder_name+"/"
-
-
-def saisir(msg):
-    x=input("saisir "+msg+": ")
-    return x.upper()
-
-
-def clients_stockers_pairs():
-    clients_data=read_jsonl_file("Clients.jsonl")
+def clients_stockers_pairs(path):
+    file_path=path+"/Clients.jsonl"
+    clients_data=read_jsonl_file(file_path)
     l=[]
     for client in clients_data:
         for stocker in client["stockeurs"]:
@@ -399,16 +381,17 @@ def clients_stockers_pairs():
     return l
 
 
-def clients_stockers_pairs_text():
-    l=clients_stockers_pairs()
+def clients_stockers_pairs_text(path):
+    l=clients_stockers_pairs(path)
     text=""
     for i in range(1,len(l)):
         text+="("+l[i][0]+", "+l[i][1]+")"+"\n"
     return text
 
 
-def add_client():
-    clients_data=read_jsonl_file("Clients.jsonl")
+def add_client(path):
+    file_path=path+"/Clients.jsonl"
+    clients_data=read_jsonl_file(file_path)
     new_client=clients_data[0]
 
     new_client["company"]=saisir("company")
@@ -416,13 +399,14 @@ def add_client():
         new_client["stockeurs"][0][key]=saisir(key)
 
     clients_data.append(new_client)
-    append_jsonl_file(new_client,"Clients.jsonl")
+    append_jsonl_file(new_client,file_path)
 
     print("Client added successfully!")
 
 
-def add_stocker(company):
-    clients_data=read_jsonl_file("Clients.jsonl")
+def add_stocker(company, path):
+    file_path=path+"/Clients.jsonl"
+    clients_data=read_jsonl_file(file_path)
     found=False
     i=0
     for client in clients_data:
@@ -441,15 +425,16 @@ def add_stocker(company):
 
     client["stockeurs"].append(new_stockeur)
     clients_data[i]=client
-    empty_file("Clients.jsonl")
+    empty_file(file_path)
     for client in clients_data:
-        append_jsonl_file(client,"Clients.jsonl")
+        append_jsonl_file(client,file_path)
 
     print("Stocker added successfully!")
 
 
-def stocker_details(company, stocker_name):
-    clients_data=read_jsonl_file("Clients.jsonl")
+def stocker_details(company, stocker_name, path):
+    file_path=path+"/Clients.jsonl"
+    clients_data=read_jsonl_file(file_path)
     company_found=False
     for client in clients_data:
         if client["company"]==company.upper():
@@ -475,12 +460,15 @@ def add_to_order(order_data,stocker_data):
     return order_data
 
 
+#------------------------Main functions---------------
+
+
 def remplir_excel(order_data):
     wb = openpyxl.load_workbook("sage_form_vide_rxl.xlsm",keep_vba=True)
 
     order_id=order_data["local_order_id"]
     param=read_json_file("parametres.json")
-    path=param["order_directory_path"]+"Order"+str(order_id)+"/"
+    path=param["orders_directory_path"]+"/"+"Order"+str(order_id)+"/"
 
     date_data=read_json_file(path+"date"+str(order_id)+".json")
 
@@ -568,7 +556,7 @@ def create_data_files(order_id,mail_file,path):
 
     result = chain.invoke({"csv_input":data})
 
-    create_json_file(json_to_dict(result),path+"date"+str(order_id)+".json")
+    create_json_file(json_to_dict(result),path+"/"+"date"+str(order_id)+".json")
 
     f=open(csv_file,"w",encoding="utf-8",errors="ignore")
     f.write(detail)
@@ -577,7 +565,7 @@ def create_data_files(order_id,mail_file,path):
     f=open(csv_file,"r",encoding="utf-8",errors="ignore")
     reader=csv.DictReader(f)
     for row in reader:
-        append_jsonl_file(row,path+"detail"+str(order_id)+".jsonl")
+        append_jsonl_file(row,path+"/"+"detail"+str(order_id)+".jsonl")
     f.close()
 
 
@@ -621,7 +609,7 @@ def mail_extractor(id,mail_obj,mail_file):
                 filename = part.get_filename()
                 if filename:
                     nb_attachments+=1
-                    name=parametres["excel_files_directory_path"]+"fichier"+str(e["local_mail_id"])+"_"+str(nb_attachments) #for review
+                    name=parametres["excel_files_directory_path"]+"/"+"fichier"+str(e["local_mail_id"])+"_"+str(nb_attachments) #for review
                     extention = "."+EXCEL_MIME_TYPES[content_type]
                     # Decode payload from base64/quoted-printable to raw binary bytes
                     file_data = part.get_payload(decode=True)
@@ -639,7 +627,8 @@ def mail_extractor(id,mail_obj,mail_file):
 
 
 def analyse_mail(e,chain):
-    result = chain.invoke({"pairs":clients_stockers_pairs_text(),"sender":e.get("From",None),"reciever":e.get("To",None),"subject":e.get("Subject",None),"body": e.get("Body",None)})
+    parametres=read_json_file("parametres.json")
+    result = chain.invoke({"pairs":clients_stockers_pairs_text(parametres["main_directory_path"]),"sender":e.get("From",None),"reciever":e.get("To",None),"subject":e.get("Subject",None),"body": e.get("Body",None)})
     data=json_to_dict(result)
     data={"local_mail_id":e["local_mail_id"],**data}
     return data
@@ -656,21 +645,21 @@ def analyse_order(e, mail_obj, data):
         parametres["next_local_order_id"]=data["local_order_id"]+1
         create_json_file(parametres,"parametres.json")
 
-        path=create_order_directory(data["local_order_id"],parametres["order_directory_path"])
-        mail_file=path+"mail"+str(data["local_mail_id"])+".json"
-        order_file=path+"order"+str(data["local_order_id"])+".json"
+        path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))+"/"
+        mail_file_path=path+"mail"+str(data["local_mail_id"])+".json"
+        order_file_path=path+"order"+str(data["local_order_id"])+".json"
 
         e["etat"]="Pending"
         data["etat"]="Pending"
         if data.get("needs_human_interferance",False)==True:
             e["etat"]="Must review"
             data["etat"]="Not treated yet"
-            flag_mail(e["mail_id"],mail_obj)
+            flag_mail(to_bytes(e["mail_id"]),mail_obj)
         else:
             if data["order_type"]=="new_order":
                 if len(e["Attachments"])>0:
                     create_data_files(data["local_order_id"],"new_mail.json",path)
-                    stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""))
+                    stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
                     data=add_to_order(data,stocker_data)
                     remplir_excel(data)
                     if parametres.get("auto_reply",False)==True:
@@ -686,20 +675,25 @@ def analyse_order(e, mail_obj, data):
             else:
                 pass
 
-        append_jsonl_file(data,parametres["main_directory_path"]+"orders.jsonl")
-        create_json_file(e,mail_file)
-        create_json_file(data,order_file)
+        append_jsonl_file(data,parametres["main_directory_path"]+"/"+"orders.jsonl")
+        create_json_file(e,mail_file_path)
+        create_json_file(data,order_file_path)
 
     else:
         e["etat"]="Rejected"
         data["etat"]="Not an order"
-        append_jsonl_file(data,parametres["main_directory_path"]+"non_orders.jsonl")
-        flag_mail(id,mail_obj)
+        append_jsonl_file(data,parametres["main_directory_path"]+"/"+"non_orders.jsonl")
+        flag_mail(to_bytes(e["mail_id"]),mail_obj)
 
-    append_jsonl_file(e,parametres["main_directory_path"]+"all_mails.jsonl")
+    append_jsonl_file(e,parametres["main_directory_path"]+"/"+"all_mails.jsonl")
 
     print(data["etat"])
     return data["etat"]
+
+
+#--------------------------Mains-------------------------
+
+#--------------------------Main--------------------------
 
 
 def main():
@@ -740,6 +734,30 @@ def main():
     log_out(mail)
 
     print("END.")
+
+
+#--------------------------Web Functions-----------------
+
+
+def affiche_html(text,element):
+    pre="<"+element+">"
+    post="</"+element+">"
+    return pre+text+post
+
+
+def download():
+    if os.path.exists("orders.csv"):
+        return send_file(
+            "orders.csv",
+            mimetype="text/csv",
+            as_attachment=True,  # Forces browser to download instead of opening in tab
+            download_name="orders.csv",  # Optional: file name the user sees
+        )
+    else:
+        return "<h3>Error: CSV file not found!</h3>", 404
+
+
+#--------------------------Web Main----------------------
 
 
 def web_main(): # a reconstruire
@@ -793,8 +811,8 @@ def web_main(): # a reconstruire
                         if parametres.get("auto_reply",False):
                             yield affiche_html(reply_to_mail(i),"h2")
                 else:
-                    append_jsonl_file(data,"non_orders.jsonl")
-                    append_json_to_csv(data,"non_orders.csv")
+                    append_jsonl_file(data,"non_orders.jsonl")#maindir
+                    append_json_to_csv(data,"non_orders.csv")#maindir
                     yield affiche_html(flag_mail(i,mail),"h2")
 
                 yield affiche_html("email analyse finished and data stored in data.jsonl.","h2")
@@ -808,6 +826,4 @@ def web_main(): # a reconstruire
     yield affiche_html("END.","h2")
 
     yield affiche_html("<a href='/download'>Download-link</a>","p")
-
-
 

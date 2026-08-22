@@ -1,3 +1,3 @@
 from functions_real import *
 
-data=read_json_file()
+set_main_folder_path("C:/Users/ELITE/Desktop/Work")
