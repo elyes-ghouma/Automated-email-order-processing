@@ -373,6 +373,12 @@ def day_name(date):
     return DAYS_FR[name]
 
 
+def create_directory(path,folder_name):
+    folder_path=path+"/"+folder_name
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path+"/"
+
+
 def create_order_directory(order_id,path):
     folder_name="Order"+str(order_id)+"/"
     os.makedirs(path+folder_name, exist_ok=True)
@@ -492,7 +498,7 @@ def remplir_excel(order_data):
         order_data.get("ville",None),
         order_data.get("pays",None)
     ]
-    for i in range(7):
+    for i in range(len(data1)):
         sheet1[cols1[i]+c1]=data1[i]
 
     sheet2 = wb["Lignes de Commandes"]
@@ -504,9 +510,29 @@ def remplir_excel(order_data):
             line.get("Réf SAGEM",None),
             line.get("Qté à commander (en UC)",None)
         ]
-        for i in range(3):
+        for i in range(len(data2)):
             sheet2[cols2[i]+str(c2)]=data2[i]
         c2+=1
+
+    sheet3 = wb["Int_Livr"]
+    cols3_1=["B","C","D","I","N","P","Q"]
+    cols3_2=["C","H","M","N","O","P","Q","R","S","T","U"]
+
+    for i in range(len(data1)):
+        sheet3[cols3_1[i]+"1"]=data1[i]
+
+    i=2
+    for line in detail_data:
+        data2=[
+            line.get("Réf SAGEM",None),
+            line.get("Qté à commander (en UC)",None)
+        ]
+        for j in range(len(cols3_2)):
+            if j<2:
+                sheet3[cols3_2[j]+str(i)]=data2[j]
+            else:
+                sheet3[cols3_2[j]+str(i)]=0
+        i+=1
 
     wb.save(path+"sage_form"+str(order_id)+".xlsm")
 
