@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from flask import send_file
 from time import sleep
+from copy import copy
 import pandas as pd
 import openpyxl
 import imaplib
@@ -215,7 +216,13 @@ def start_ai_agent(model_name,template_path):
     ok=False
     for m in response['models']:
         if model_name==m['model']:
-            model=OllamaLLM(model=model_name)
+            model=OllamaLLM(model=model_name,
+                            temperature=0.0,
+                            model_kwargs={
+                                "seed":42,
+                                "top_p":1.0
+                            }
+            )
             ok=True
     if not ok:
         print("model "+model_name+" is invalide!")
@@ -371,6 +378,23 @@ def saisir(msg):
     return x.upper()
 
 
+def clients_stockers_pairs():
+    clients_data=read_jsonl_file("Clients.jsonl")
+    l=[]
+    for client in clients_data:
+        for stocker in client["stockeurs"]:
+            l.append((client["company"],stocker["stockeur"]))
+    return l
+
+
+def clients_stockers_pairs_text():
+    l=clients_stockers_pairs()
+    text=""
+    for i in range(1,len(l)):
+        text+="("+l[i][0]+", "+l[i][1]+")"+"\n"
+    return text
+
+
 def add_client():
     clients_data=read_jsonl_file("Clients.jsonl")
     new_client=clients_data[0]
@@ -399,7 +423,7 @@ def add_stocker(company):
         print("Error: company not found!")
         return None
 
-    new_stockeur=clients_data[0]["stockeurs"][0]
+    new_stockeur=copy(clients_data[0]["stockeurs"][0])
     for key in new_stockeur.keys():
         new_stockeur[key]=saisir(key)
 
@@ -527,7 +551,7 @@ def create_data_files(order_id,mail_file,path):
 
 def mail_extractor(id,mail_obj,mail_file):
 
-    e=dict(local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachment=list)
+    e=dict(mail_id=str,local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachment=list)
     
     result,msg_data = mail_obj.fetch(id, "(RFC822)")
     raw_email = msg_data[0][1]
@@ -581,21 +605,16 @@ def mail_extractor(id,mail_obj,mail_file):
     create_json_file(e,mail_file)
 
 
-def analyse_mail(id,mail_obj,chain):
-    parametres=read_json_file("parametres.json")
-    mail_extractor(id,mail_obj,"new_mail.json")
-    print("email",id,"has been extracted.")
-
-    e=read_json_file("new_mail.json")
-    sender=e.get("From",None)
-    reciever=e.get("To",None)
-    subject=e.get("Subject",None)
-    body=e.get("Body",None)
-
-    result = chain.invoke({"sender":sender,"reciever":reciever,"subject":subject,"body": body})
-
+def consult_agent(e,chain):
+    result = chain.invoke({"pairs":clients_stockers_pairs_text(),"sender":e.get("From",None),"reciever":e.get("To",None),"subject":e.get("Subject",None),"body": e.get("Body",None)})
     data=json_to_dict(result)
     data={"local_mail_id":e["local_mail_id"],**data}
+    return data
+
+
+def analyse_order(e, mail_obj, data):
+
+    parametres=read_json_file("parametres.json")
 
     if data.get("is_order_related",False)==True:
 
@@ -614,18 +633,18 @@ def analyse_mail(id,mail_obj,chain):
         else:
             if data["order_type"]=="new_order":
                 create_data_files(data["local_order_id"],"new_mail.json",path)
+                e["etat"]="Accepted"
+                stocker_data=stocker_details(data["company"],data["stockeur"])
+                data=add_to_order(data,stocker_data)
+                remplir_excel(data)
+                if parametres.get("auto_reply",False)==True:
+                    reply_to_mail(id)
             elif data["order_type"]=="update_order":# not finished
                 pass
             elif data["order_type"]=="cancel_order":
                 pass
             else:
                 pass
-            e["etat"]="Accepted"
-            stocker_data=stocker_details("SAGEMCOM",data["stockeur"])#to alter "sagemcom" to data["company_name"]
-            data=add_to_order(data,stocker_data)
-            remplir_excel(data)
-            if parametres.get("auto_reply",False)==True:
-                reply_to_mail(id)
 
         append_jsonl_file(data,parametres["main_directory_path"]+"orders.jsonl")
         create_json_file(e,mail_file)
@@ -658,10 +677,20 @@ def main():
         print("Listening for emails...")
         ids=extract_mail_ids(mail)
         print(len(ids),"emails has been found.")
+        print()
 
         if len(ids)>0:
             for id in ids:
-                analyse_mail(id,mail,chain)
+                
+                mail_extractor(id,mail,"new_mail.json")
+                print("email",id,"has been extracted.")
+
+                e=read_json_file("new_mail.json")
+
+                data=consult_agent(e,chain)   
+
+                analyse_order(e,mail,data)
+
                 print()
 
         sleep(parametres["delay"])
