@@ -16,7 +16,7 @@ in interferance_reason.
 ============================================================
 KNOWN COMPANY / STOCKER PAIRS (reference data — match against this list)
 ============================================================
-This is the authoritative list of valid (company_name, stockeur) combinations.
+This is the authoritative list of valid (company, stockeur) combinations.
 A company may appear with more than one stocker if it legitimately works with
 several; treat each listed pair as valid.
 
@@ -36,7 +36,7 @@ FIELD-BY-FIELD LOGIC
      "Quick question") rely on body.
    - If is_order_related = false, then order_type MUST be null.
 
-2. company_name / stockeur / is_registered — THIS IS THE PRIMARY OBJECTIVE
+2. company / stockeur / is_registered — THIS IS THE PRIMARY OBJECTIVE
    - First, identify which company the email is from (signature, domain,
      explicit mention) and which stocker/warehouse/depot it concerns
      (explicit mention in subject or body, e.g. "CO3 CMS", "Depot Nord",
@@ -44,11 +44,11 @@ FIELD-BY-FIELD LOGIC
    - Compare the (company, stocker) you identified against the KNOWN COMPANY
      / STOCKER PAIRS list above.
      * If you find an exact or clearly-matching pair in the list, use the
-       company_name and stockeur values EXACTLY as they appear in that list
+       company and stockeur values EXACTLY as they appear in that list
        (not as freely transcribed from the email), and set
        is_registered = true.
      * If the company and/or stocker you identified do NOT match any pair in
-       the list, set is_registered = false, and still report company_name /
+       the list, set is_registered = false, and still report company /
        stockeur using your best-effort extraction from the email text as
        written (do not force-fit them onto a known pair).
      * If you cannot identify a company and/or stocker at all, set the

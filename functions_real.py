@@ -3,6 +3,7 @@ from langchain_ollama.llms import OllamaLLM
 from email.message import EmailMessage
 from dotenv import load_dotenv
 from datetime import datetime
+from ast import literal_eval
 from flask import send_file
 from time import sleep
 from copy import copy
@@ -16,7 +17,6 @@ import json
 import csv
 import os
 import re
-
 
 def file_existance(file_name):
     return os.path.isfile(file_name)
@@ -68,6 +68,12 @@ def json_to_dict(json_data):
         return parsed if isinstance(parsed, dict) else {"data": parsed}
     except json.JSONDecodeError:
         return {}
+
+
+def to_bytes(x: str) -> bytes:
+    if x.startswith("b'") or x.startswith('b"'):
+        return literal_eval(x)
+    return x.encode("utf-8")
 
 
 '''
@@ -512,11 +518,11 @@ def create_data_files(order_id,mail_file,path):
 
     mail_data=read_json_file(mail_file)
     
-    if len(mail_data["Attachment"])==0:
+    if len(mail_data["Attachments"])==0:
         print("No attachments")
         return None
     csv_file="xl.csv"
-    xl_to_csv(mail_data["Attachment"][0],csv_file)
+    xl_to_csv(mail_data["Attachments"][0],csv_file)
     
     f=open(csv_file,"r",encoding="utf-8",errors="ignore")
 
@@ -551,7 +557,7 @@ def create_data_files(order_id,mail_file,path):
 
 def mail_extractor(id,mail_obj,mail_file):
 
-    e=dict(mail_id=str,local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachment=list)
+    e=dict(mail_id=str,local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachments=list)
     
     result,msg_data = mail_obj.fetch(id, "(RFC822)")
     raw_email = msg_data[0][1]
@@ -566,7 +572,7 @@ def mail_extractor(id,mail_obj,mail_file):
     e["To"] = msg["To"]
     e["Subject"] = msg["Subject"]
     e["Date"] = msg["Date"]
-    e["Attachment"]=[]
+    e["Attachments"]=[]
     e["Body"]=None
     
     # Target MIME types for Excel spreadsheets
@@ -596,16 +602,17 @@ def mail_extractor(id,mail_obj,mail_file):
                     if file_data is not None:
                         with open(name+extention, "wb") as f:
                             f.write(file_data)
-                        e["Attachment"].append(name+extention)
+                        e["Attachments"].append(name+extention)
     else:
         coded_body = msg.get_payload(decode=True)
         if coded_body:
             e["Body"] = coded_body.decode("utf-8", errors="ignore")
     e["Body"]=clean_email_text(e["Body"])
     create_json_file(e,mail_file)
+    print("email",id,"has been extracted.")
 
 
-def consult_agent(e,chain):
+def analyse_mail(e,chain):
     result = chain.invoke({"pairs":clients_stockers_pairs_text(),"sender":e.get("From",None),"reciever":e.get("To",None),"subject":e.get("Subject",None),"body": e.get("Body",None)})
     data=json_to_dict(result)
     data={"local_mail_id":e["local_mail_id"],**data}
@@ -626,19 +633,26 @@ def analyse_order(e, mail_obj, data):
         path=create_order_directory(data["local_order_id"],parametres["order_directory_path"])
         mail_file=path+"mail"+str(data["local_mail_id"])+".json"
         order_file=path+"order"+str(data["local_order_id"])+".json"
-        
+
+        e["etat"]="Pending"
+        data["etat"]="Pending"
         if data.get("needs_human_interferance",False)==True:
-            e["etat"]="Waiting for review"
-            flag_mail(id,mail_obj)
+            e["etat"]="Must review"
+            data["etat"]="Not treated yet"
+            flag_mail(e["mail_id"],mail_obj)
         else:
             if data["order_type"]=="new_order":
-                create_data_files(data["local_order_id"],"new_mail.json",path)
-                e["etat"]="Accepted"
-                stocker_data=stocker_details(data["company"],data["stockeur"])
-                data=add_to_order(data,stocker_data)
-                remplir_excel(data)
-                if parametres.get("auto_reply",False)==True:
-                    reply_to_mail(id)
+                if len(e["Attachments"])>0:
+                    create_data_files(data["local_order_id"],"new_mail.json",path)
+                    stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""))
+                    data=add_to_order(data,stocker_data)
+                    remplir_excel(data)
+                    if parametres.get("auto_reply",False)==True:
+                        reply_to_mail(e["mail_id"])
+                    e["etat"]="Done"
+                    data["etat"]="Ready for WMS"
+                else:
+                    print("No attatchments in mail "+e["mail_id"])
             elif data["order_type"]=="update_order":# not finished
                 pass
             elif data["order_type"]=="cancel_order":
@@ -652,13 +666,14 @@ def analyse_order(e, mail_obj, data):
 
     else:
         e["etat"]="Rejected"
+        data["etat"]="Not an order"
         append_jsonl_file(data,parametres["main_directory_path"]+"non_orders.jsonl")
         flag_mail(id,mail_obj)
 
     append_jsonl_file(e,parametres["main_directory_path"]+"all_mails.jsonl")
 
-    print("email "+e["etat"])
-    return(e["etat"])
+    print(data["etat"])
+    return data["etat"]
 
 
 def main():
@@ -683,11 +698,10 @@ def main():
             for id in ids:
                 
                 mail_extractor(id,mail,"new_mail.json")
-                print("email",id,"has been extracted.")
 
                 e=read_json_file("new_mail.json")
 
-                data=consult_agent(e,chain)   
+                data=analyse_mail(e,chain)   
 
                 analyse_order(e,mail,data)
 

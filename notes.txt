@@ -15,10 +15,11 @@ if update...+-+-+-+
 mail etat not data etat+++++
 sala7 blaset l mail id++++++++++
 thabet fel orders kfh jawhom tar9imhom++
-ri9el el randomness t3 lai
+ri9el el randomness t3 lai++++
 kol company 3andha list des stockeurs f clients.jsonl++++++
 update l add client ++++++
 update stockerdetails++++++
 add add_stocker+++++++++
-rod l template te5dem 3al companies l mawjodin
-riguel 7keyet les etats (mails w orders)
+rod l template te5dem 3al companies l mawjodin+++
+riguel 7keyet les etats (mails w orders)+++
+riguel les path mt3 files fel param
