@@ -1,3 +1,4 @@
 from functions_real import *
 
-set_main_folder_path("C:/Users/ELITE/Desktop/Work")
+init_client("C:/Users/ELITE/Desktop/Projet_Planification")
+print(read_jsonl_file("C:/Users/ELITE/Desktop/Projet_Planification"))

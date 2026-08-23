@@ -22,9 +22,10 @@ import re
 #--------------------------Initialazing functions-----------------------------
 
 
-def init_clients(path):
-    cl=dict(company=None,stockeurs=[dict(stockeur=None,num_stockeur=None,num_dep=None,ville=None,pays=None)])
-    create_json_file(cl,path+"/Clients.jsonl")
+def init_client(path):
+    file_path=path+"/Clients.jsonl"
+    if not os.path.isfile(file_path):
+        empty_file(file_path)
 
 
 def set_main_folder_path(path):
@@ -371,6 +372,16 @@ def reply_to_mail(i):
 #----------------------Client/Stocker functions---------
 
 
+def clients_names_list(path):
+    file_path=path+"/Clients.jsonl"
+    clients_data=read_jsonl_file(file_path)
+    l=[]
+    for client in clients_data:
+        l.append(client["company"])
+    return l
+
+
+
 def clients_stockers_pairs(path):
     file_path=path+"/Clients.jsonl"
     clients_data=read_jsonl_file(file_path)
@@ -389,28 +400,21 @@ def clients_stockers_pairs_text(path):
     return text
 
 
-def add_client(path):
+def add_client(path,client):
     file_path=path+"/Clients.jsonl"
-    clients_data=read_jsonl_file(file_path)
-    new_client=clients_data[0]
 
-    new_client["company"]=saisir("company")
-    for key in new_client["stockeurs"][0].keys():
-        new_client["stockeurs"][0][key]=saisir(key)
-
-    clients_data.append(new_client)
-    append_jsonl_file(new_client,file_path)
+    append_jsonl_file(client,file_path)
 
     print("Client added successfully!")
 
 
-def add_stocker(company, path):
+def add_stocker(company, path, new_stocker):
     file_path=path+"/Clients.jsonl"
     clients_data=read_jsonl_file(file_path)
     found=False
     i=0
     for client in clients_data:
-        if client["company"]==company.upper():
+        if client["company"].upper()==company.upper():
             found=True
             break
         i+=1
@@ -419,11 +423,7 @@ def add_stocker(company, path):
         print("Error: company not found!")
         return None
 
-    new_stockeur=copy(clients_data[0]["stockeurs"][0])
-    for key in new_stockeur.keys():
-        new_stockeur[key]=saisir(key)
-
-    client["stockeurs"].append(new_stockeur)
+    client["stockeurs"].append(new_stocker)
     clients_data[i]=client
     empty_file(file_path)
     for client in clients_data:
@@ -437,7 +437,7 @@ def stocker_details(company, stocker_name, path):
     clients_data=read_jsonl_file(file_path)
     company_found=False
     for client in clients_data:
-        if client["company"]==company.upper():
+        if client["company"].upper()==company.upper():
             company_found=True
             break
     if not company_found:
@@ -445,7 +445,7 @@ def stocker_details(company, stocker_name, path):
         return None,None,None,None
     
     for stockeur in client["stockeurs"]:
-        if stockeur["stockeur"]==stocker_name.upper():
+        if stockeur["stockeur"].upper()==stocker_name.upper():
             return stockeur["num_stockeur"],stockeur["num_dep"],stockeur["ville"],stockeur["pays"]
 
     print("Error: Company and stocker couple is invalide ")

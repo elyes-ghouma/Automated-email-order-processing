@@ -1,15 +1,11 @@
 combien d'heures pour urgent---------
 rod dateX, detailX b numero l ordre mech l mail ++++++
 nadhem les templates ++++++
-tarjem mt3 l englais lel francais --------
 hot les donnes fi fichier mech mtaychin+++++++++
-l ids b3d el result+++++++++++--
 mailX + orderX +++++++
 all_mails and orders only+-+-+-
-read excel after giving an order id ++++++-
 l mail id howa l id l 7a9ani+++++++++++
 no attachment errors+++++++++++++
-what to do in case of an error+++++++++--------
 if cancel no data creation+-+-+-+-+
 if update...+-+-+-+
 mail etat not data etat+++++
@@ -26,6 +22,10 @@ riguel les path mt3 files fel param+++++
 sala7 /// mt3 l floders al9alha 7al++++
 riguel excel int_livr++++++++
 rod zoz functions flag w unflag w te5tar chnawa l flag li cht7oto w tna7ih --------
+clients.json should be in the folder of work+++++++++++
+
+read excel after giving an order id ++++++-??
+l ids b3d el result+++++++++++--??
+what to do in case of an error+++++++++--------
 translate to french-
 create main prog or interface or whatever
-clients.json should be in the folder of work+++++
