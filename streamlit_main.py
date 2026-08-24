@@ -99,8 +99,9 @@ if btn_analyse:
 # ==========================================
 # MAIN SECTIONS (TABS)
 # ==========================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "👥 Add Client / Add Stocker",
+    "🏢 Show Clients",
     "📊 Show Orders",
     "📧 Show Non Orders",
     "📩 Show Mails",
@@ -191,9 +192,47 @@ with tab1:
     st.markdown("---")
 
 # ------------------------------------------
-# 2. SHOW ORDERS SECTION
+# 2. SHOW CLIENTS SECTION
 # ------------------------------------------
 with tab2:
+    st.header("Registered Clients & Stockers")
+    
+    clients_file_path = os.path.join(path, "Clients.jsonl")
+    if os.path.exists(clients_file_path):
+        clients_data = read_jsonl_file(clients_file_path)
+        
+        if clients_data:
+            # Flatten the nested dictionary into a tabular format
+            flattened_data = []
+            for client in clients_data:
+                company = client.get("company", "N/A")
+                for stocker in client.get("stockeurs", []):
+                    flattened_data.append({
+                        "Company": company,
+                        "Stockeur": stocker.get("stockeur", ""),
+                        "Num Stockeur": stocker.get("num_stockeur", ""),
+                        "Num Département": stocker.get("num_dep", ""),
+                        "Ville": stocker.get("ville", ""),
+                        "Pays": stocker.get("pays", "")
+                    })
+            
+            if flattened_data:
+                df_clients = pd.DataFrame(flattened_data)
+                st.dataframe(df_clients, use_container_width=True)
+            else:
+                st.info("Clients found, but no stockers are registered.")
+                
+            with st.expander("View Raw JSON Data"):
+                st.json(clients_data)
+        else:
+            st.info("The Clients database is empty.")
+    else:
+        st.info("No Clients.jsonl file found yet.")
+
+# ------------------------------------------
+# 3. SHOW ORDERS SECTION
+# ------------------------------------------
+with tab3:
     st.header("Validated Order Requests")
     orders = read_jsonl_file(os.path.join(path,"orders.jsonl"))
     if orders:
@@ -202,9 +241,9 @@ with tab2:
         st.info("No valid orders found yet. Click 'Analyse Mails' to process your inbox.")
 
 # ------------------------------------------
-# 3. SHOW NON ORDERS SECTION
+# 4. SHOW NON ORDERS SECTION
 # ------------------------------------------
-with tab3:
+with tab4:
     st.header("Non-Order Emails")
     non_orders = read_jsonl_file(os.path.join(path,"non_orders.jsonl"))
     if non_orders:
@@ -213,9 +252,9 @@ with tab3:
         st.info("No non-order emails found.")
 
 # ------------------------------------------
-# 4. SHOW MAILS SECTION
+# 5. SHOW MAILS SECTION
 # ------------------------------------------
-with tab4:
+with tab5:
     st.header("All Processed Emails")
     emails = read_jsonl_file(os.path.join(path,"all_mails.jsonl"))
     if emails:
@@ -224,9 +263,9 @@ with tab4:
         st.info("No email records loaded.")
 
 # ------------------------------------------
-# 5. EDIT ORDER SECTION
+# 6. EDIT ORDER SECTION
 # ------------------------------------------
-with tab5:
+with tab6:
     st.header("Lookup & Edit Order")
     
     orders = read_jsonl_file(os.path.join(path, "orders.jsonl"))

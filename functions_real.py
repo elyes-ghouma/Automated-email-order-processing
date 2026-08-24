@@ -30,7 +30,7 @@ def init_client(path):
 
 def set_main_folder_path(path):
     parametres=read_json_file("parametres.json")
-
+    
     parametres["main_directory_path"]=create_directory(path,"Vectorys Planification")
 
     parametres["orders_directory_path"]=create_directory(parametres["main_directory_path"],"Orders")
@@ -413,11 +413,14 @@ def search_mail_order(mid=None,lmid=None,loid=None):
 
     i=0
     for mail in mails:
-        if mail["mail_id"]==mid or mail["local_mail_id"]==lmid:
-            mails.pop(i)
-            if lmid==None:
-                lmid=mail["local_mail_id"]
-            break
+        if mid==None or lmid==None:
+            if mail["mail_id"]==mid or mail["local_mail_id"]==lmid:
+                mails.pop(i)
+                break
+        else:
+            if mail["mail_id"]==mid and mail["local_mail_id"]==lmid:
+                mails.pop(i)
+                break
         i+=1
 
     j=0
@@ -839,7 +842,7 @@ def main():
 
                 if is_mail_flagged(id,mail):
                     print("Old mail!")
-                    e,data=search_mail_order(str(id))
+                    e,data=search_mail_order(mid=str(id),lmid=e["local_mail_id"])
                     odp=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))
                     process_order(e,mail,data,odp)
                     file_order(e,data,odp)

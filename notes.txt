@@ -28,10 +28,10 @@ read excel after giving an order id ++++++-??
 l ids b3d el result+++++++++++--??
 what to do in case of an error+++++++++--------
 translate to french-
-create main prog or interface or whatever
-search mail and search order functions
+create main prog or interface or whatever+++
+search mail and search order functions +++
 add rerun button which re give the mail to the agent
-and make the update only go throught the order processing
+and make the update only go throught the order processing +++
 add show clients
 how to stop 
 
