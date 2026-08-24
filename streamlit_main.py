@@ -1,9 +1,18 @@
 import os
+import tkinter as tk
+from tkinter import filedialog
 import pandas as pd
 import streamlit as st
 from functions_real import *
 
-path="C:/Users/ELITE/Desktop/Work/Vectorys Planification"
+# Helper function to launch native OS Folder Browser
+def select_folder():
+    root = tk.Tk()
+    root.withdraw()
+    root.wm_attributes('-topmost', 1)
+    folder_path = filedialog.askdirectory(master=root)
+    root.destroy()
+    return folder_path
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -13,12 +22,10 @@ st.set_page_config(
 )
 
 # Initialize persistent session states
-if "orders_db" not in st.session_state:
-    st.session_state["orders_db"] = []
 
-# List of company dictionary objects conforming strictly to your schema
-if "clients_db" not in st.session_state:
-    st.session_state["clients_db"] = []
+default_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Projet_Planification")
+if "work_folder" not in st.session_state:
+    st.session_state["work_folder"] = default_dir
 
 # ==========================================
 # SIDEBAR: Work Folder, Credentials & Execution
@@ -26,14 +33,40 @@ if "clients_db" not in st.session_state:
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    # 1. Workspace Folder Selection
+    # 1. Workspace Folder Selection with Native Picker
     st.subheader("1. Working Directory")
-    default_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Vectorys Planification")
-    work_folder = st.text_input("📁 Work Folder Path", value=default_dir)
     
-    if work_folder and not os.path.exists(work_folder):
-        os.makedirs(work_folder, exist_ok=True)
+    col_path, col_btn = st.columns([3, 1])
+    
+    with col_path:
+        work_folder = st.text_input(
+            "📁 Folder Path", 
+            value=st.session_state["work_folder"],
+            label_visibility="collapsed"
+        )
+        st.session_state["work_folder"] = work_folder
+
+    with col_btn:
+        if st.button("📂 Browse", use_container_width=True):
+            selected = select_folder()
+            if selected:
+                st.session_state["work_folder"] = selected
+                st.rerun()
+
+    # Dynamic path update based on active workspace
+    
+    path = st.session_state["work_folder"]
+
+    if path and not os.path.exists(path):
+        set_main_folder_path(path)
+        parametres=read_json_file("parametres.json")
+        path=parametres["main_directory_path"]
         st.success("Work folder created!")
+    else:
+        set_main_folder_path(path)
+        parametres=read_json_file("parametres.json")
+        path=parametres["main_directory_path"]
+        st.caption(f"Active Path: `{path}`")
 
     st.markdown("---")
     
@@ -56,34 +89,9 @@ if btn_analyse:
     else:
         with st.spinner("Connecting to inbox, downloading attachments, and analyzing mails..."):
             try:
-                # -------------------------------------------------------------
-                # CALL YOUR EXISTING PIPELINE HERE:
-                # e.g., analyze_all_mails(email_user, email_pass, work_folder)
-                # -------------------------------------------------------------
+
+                main()
                 
-                # Mock result payload for UI testing
-                st.session_state["orders_db"] = [
-                    {
-                        "local_mail_id": "101",
-                        "sender": "client1@domain.com",
-                        "subject": "Commande Urgente",
-                        "is_order": True,
-                        "client": "Client A",
-                        "stockeur": "CO3 CMS",
-                        "status": "Ready",
-                        "attachment": "order_101.xlsm"
-                    },
-                    {
-                        "local_mail_id": "102",
-                        "sender": "newsletter@domain.com",
-                        "subject": "Monthly Updates",
-                        "is_order": False,
-                        "client": "N/A",
-                        "stockeur": "N/A",
-                        "status": "Non-Order",
-                        "attachment": "None"
-                    }
-                ]
                 st.success("Analysis complete!")
             except Exception as e:
                 st.error(f"Error during execution: {e}")
@@ -91,11 +99,12 @@ if btn_analyse:
 # ==========================================
 # MAIN SECTIONS (TABS)
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "👥 Add Client / Add Stocker",
     "📊 Show Orders",
     "📧 Show Non Orders",
-    "📩 Show Mails"
+    "📩 Show Mails",
+    "✏️ Edit Order"
 ])
 
 # ------------------------------------------
@@ -138,7 +147,7 @@ with tab1:
                             }
                         ]
                     }
-                    add_client(path,new_client)
+                    add_client(path, new_client)
                     st.success(f"Company '{company_name}' created with stockeur '{stockeur_name}'!")
 
     # --- Form 2: Add Additional Stocker to Existing Company ---
@@ -174,11 +183,10 @@ with tab1:
                                 "ville": extra_ville,
                                 "pays": extra_pays
                             }
-                            target_entry["stockeurs"].append(new_stockeur_obj)
-                            add_stocker(target_entry["company"],path,new_stockeur_obj)
+                            add_stocker(target_entry["company"], path, new_stockeur_obj)
                             st.success(f"Stockeur '{extra_stockeur}' added to {selected_company}!")
         else:
-            st.info("No companies registered yet. Add a client first.")
+            st.info("No companies registered yet in the current working directory.")
 
     st.markdown("---")
 
@@ -187,12 +195,9 @@ with tab1:
 # ------------------------------------------
 with tab2:
     st.header("Validated Order Requests")
-    
-    orders = [m for m in st.session_state["orders_db"] if m.get("is_order") is True]
-    
+    orders = read_jsonl_file(os.path.join(path,"orders.jsonl"))
     if orders:
-        df_orders = pd.DataFrame(orders)
-        st.dataframe(df_orders, use_container_width=True)
+        st.dataframe(pd.DataFrame(orders), use_container_width=True)
     else:
         st.info("No valid orders found yet. Click 'Analyse Mails' to process your inbox.")
 
@@ -201,12 +206,9 @@ with tab2:
 # ------------------------------------------
 with tab3:
     st.header("Non-Order Emails")
-    
-    non_orders = [m for m in st.session_state["orders_db"] if m.get("is_order") is False]
-    
+    non_orders = read_jsonl_file(os.path.join(path,"non_orders.jsonl"))
     if non_orders:
-        df_non_orders = pd.DataFrame(non_orders)
-        st.dataframe(df_non_orders, use_container_width=True)
+        st.dataframe(pd.DataFrame(non_orders), use_container_width=True)
     else:
         st.info("No non-order emails found.")
 
@@ -215,9 +217,52 @@ with tab3:
 # ------------------------------------------
 with tab4:
     st.header("All Processed Emails")
-    
-    if st.session_state["orders_db"]:
-        df_all = pd.DataFrame(st.session_state["orders_db"])
-        st.dataframe(df_all, use_container_width=True)
+    emails = read_jsonl_file(os.path.join(path,"all_mails.jsonl"))
+    if emails:
+        st.dataframe(pd.DataFrame(emails), use_container_width=True)
     else:
         st.info("No email records loaded.")
+
+# ------------------------------------------
+# 5. EDIT ORDER SECTION
+# ------------------------------------------
+with tab5:
+    st.header("Lookup & Edit Order")
+    
+    orders = read_jsonl_file(os.path.join(path, "orders.jsonl"))
+    all_mails = read_jsonl_file(os.path.join(path, "all_mails.jsonl"))
+    
+    if orders:
+        order_ids = [str(o.get("local_mail_id")) for o in orders if "local_mail_id" in o]
+        selected_id = st.selectbox("Select Order (local_mail_id)", order_ids)
+        
+        target_order = next((o for o in orders if str(o.get("local_mail_id")) == selected_id), None)
+        target_mail = next((m for m in all_mails if str(m.get("local_mail_id")) == selected_id), None)
+        
+        col_mail_info, col_order_edit = st.columns(2)
+        
+        with col_mail_info:
+            st.subheader("📩 Corresponding Email Details")
+            if target_mail:
+                st.json(target_mail)
+            else:
+                st.warning("No matching raw email record found in `all_mails.jsonl`.")
+                
+        with col_order_edit:
+            st.subheader("✏️ Edit Order Content")
+            if target_order:
+                with st.form("edit_order_form"):
+                    edited_fields = {}
+                    for k, v in target_order.items():
+                        if k == "local_mail_id" or k=="local_order_id":
+                            st.text_input(f"{k} (Read-Only)", value=str(v), disabled=True)
+                            edited_fields[k] = v
+                        else:
+                            edited_fields[k] = st.text_input(str(k), value=str(v))
+                    submit_update = st.form_submit_button("Save Order Updates")
+                    if submit_update:
+                        if "update_order" in globals():
+                            update_order(path, edited_fields)
+                        st.success("Order updated successfully!")
+    else:
+        st.info("No order records available to edit.")

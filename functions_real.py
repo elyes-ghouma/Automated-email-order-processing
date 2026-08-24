@@ -31,7 +31,7 @@ def init_client(path):
 def set_main_folder_path(path):
     parametres=read_json_file("parametres.json")
 
-    parametres["main_directory_path"]=path+"/"+"Vectorys Planification"
+    parametres["main_directory_path"]=create_directory(path,"Vectorys Planification")
 
     parametres["orders_directory_path"]=create_directory(parametres["main_directory_path"],"Orders")
 
@@ -99,6 +99,12 @@ def append_jsonl_file(dict_data,jsonl_file_name):
     jsonl_file=open(jsonl_file_name,"a",encoding="utf-8",errors="ignore")
     jsonl_file.write(json.dumps(dict_data, ensure_ascii=False)+"\n")
     jsonl_file.close()
+
+
+def create_jsonl_file(list_dict_data,jsonl_file_name):
+    empty_file(jsonl_file_name)
+    for dict_data in list_dict_data:
+        append_jsonl_file(dict_data,jsonl_file_name)
 
 
 def create_json_file(dict_data,json_file_name):
@@ -188,7 +194,8 @@ def empty_file(file_name):
 
 def create_directory(path,folder_name):
     folder_path=path+"/"+folder_name
-    os.makedirs(folder_path, exist_ok=True)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path, exist_ok=True)
     return folder_path
 
 
@@ -311,6 +318,12 @@ def log_out(mail_obj):
     mail_obj.logout()
 
 
+def unflag_mail(id,mail_obj):
+    mail_obj.store(id,"-FLAGS","\\Flagged")
+    print("Email Unflagged!")
+    return "Email Unflagged!"
+
+
 def unsee_mail(id,mail_obj):
     mail_obj.store(id,"-FLAGS","\\SEEN")
     print("Email Unseen!")
@@ -323,16 +336,36 @@ def flag_mail(id,mail_obj):
     return "Email Flagged!"
 
 
+def is_mail_flagged(id ,mail_obj) -> bool:
+    """
+    Checks if a specific email UID has the '\\Flagged' flag in IMAP.
+    
+    :param mail_obj: Active imaplib.IMAP4_SSL instance
+    :param mail_uid: String representing the IMAP UID of the target email
+    :return: True if flagged/starred, False otherwise
+    """
+    # Fetch flags for the specific email UID
+    if isinstance(id, bytes):
+        id = id.decode("utf-8")
+    else:
+        id = str(id)
+
+    status, response = mail_obj.fetch( id, "(FLAGS)")
+    
+    if status == "OK" and response[0]:
+        raw_flags = response[0].decode() if isinstance(response[0], bytes) else str(response[0])
+        return "\\Flagged" in raw_flags
+    
+    return False
+
+
 def extract_mail_ids(mail_obj):
     result,data = mail_obj.search(None, "UNSEEN")
     ids = data[0].split()
     return ids
 
 
-def reply_to_mail(i):
-
-    # --- STEP 1: Use IMAP to fetch details from the incoming email ---
-    mail_obj=log_in()
+def reply_to_mail(i,mail_obj):
 
     # Fetch original email
     status, data = mail_obj.fetch(i, "(BODY[])")
@@ -341,9 +374,6 @@ def reply_to_mail(i):
     sender = raw_msg["From"]
     msg_id = raw_msg["Message-ID"]
     subject = raw_msg["Subject"]
-
-    log_out(mail_obj)
-
 
     # --- STEP 2: Use SMTP to send the reply ---
     reply = EmailMessage()
@@ -372,6 +402,38 @@ def reply_to_mail(i):
 #----------------------Client/Stocker functions---------
 
 
+def search_mail_order(mid=None,lmid=None,loid=None):
+    parametres=read_json_file("parametres.json")
+
+    mails_file_path=os.path.join(parametres["main_directory_path"],"all_mails.jsonl")
+    orders_file_path=os.path.join(parametres["main_directory_path"],"orders.jsonl")
+
+    mails=read_jsonl_file(mails_file_path)
+    orders=read_jsonl_file(orders_file_path)
+
+    i=0
+    for mail in mails:
+        if mail["mail_id"]==mid or mail["local_mail_id"]==lmid:
+            mails.pop(i)
+            if lmid==None:
+                lmid=mail["local_mail_id"]
+            break
+        i+=1
+
+    j=0
+    for order in orders:
+        if order["local_order_id"]==loid or order["local_mail_id"]==lmid:
+            orders.pop(j)
+            break
+        j+=1
+
+
+    create_jsonl_file(mails,mails_file_path)
+    create_jsonl_file(orders,orders_file_path)
+
+    return mail,order
+     
+
 def clients_names_list(path):
     file_path=path+"/Clients.jsonl"
     clients_data=read_jsonl_file(file_path)
@@ -379,7 +441,6 @@ def clients_names_list(path):
     for client in clients_data:
         l.append(client["company"])
     return l
-
 
 
 def clients_stockers_pairs(path):
@@ -395,7 +456,7 @@ def clients_stockers_pairs(path):
 def clients_stockers_pairs_text(path):
     l=clients_stockers_pairs(path)
     text=""
-    for i in range(1,len(l)):
+    for i in range(len(l)):
         text+="("+l[i][0]+", "+l[i][1]+")"+"\n"
     return text
 
@@ -463,6 +524,50 @@ def add_to_order(order_data,stocker_data):
 #------------------------Main functions---------------
 
 
+def update_order(path,data):
+    orders_file_path=os.path.join(path,"orders.jsonl")
+    mails_file_path=os.path.join(path,"all_mails.jsonl")
+
+    orders_data=read_jsonl_file(orders_file_path)
+    mails_data=read_jsonl_file(mails_file_path)
+
+    data["local_order_id"]=int(data["local_order_id"])
+    data["local_mail_id"]=int(data["local_mail_id"])
+    data["needs_human_interferance"]=False
+    is_reg=data.get("is_registered",False)
+    if is_reg=="True":
+        data["is_registered"]=True
+    else:
+        data["is_registered"]=False
+    is_ord_rel=data.get("is_order_related",False)
+    if is_ord_rel=="True":
+        data["is_order_related"]=True
+    else:
+        data["is_order_related"]=False
+
+    for i in range(len(orders_data)):
+        if orders_data[i]["local_order_id"]==data["local_order_id"]:
+            data["etat"]="Reviewed"
+            orders_data[i]=data
+
+    for j in range(len(mails_data)):
+        if mails_data[j]["local_mail_id"]==data["local_mail_id"]:
+            mails_data[j]["etat"]="Reviewed"
+            mail=log_in()
+            id=to_bytes(mails_data[j]["mail_id"])
+            unsee_mail(id,mail)
+            flag_mail(id,mail)
+            log_out(mail)
+
+    empty_file(orders_file_path)
+    for order in orders_data:
+        append_jsonl_file(order,orders_file_path)
+
+    empty_file(mails_file_path)
+    for mail in mails_data:
+        append_jsonl_file(mail,mails_file_path)
+
+            
 def remplir_excel(order_data):
     wb = openpyxl.load_workbook("sage_form_vide_rxl.xlsm",keep_vba=True)
 
@@ -634,50 +739,66 @@ def analyse_mail(e,chain):
     return data
 
 
+def process_order(e,mail_obj,data,order_dir_path):
+    parametres=read_json_file("parametres.json")
+    if data["order_type"]=="new_order":
+        if len(e["Attachments"])>0:
+            create_data_files(data["local_order_id"],"new_mail.json",order_dir_path)
+            stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
+            data=add_to_order(data,stocker_data)
+            remplir_excel(data)
+            if parametres.get("auto_reply",False)==True:
+                reply_to_mail(e["mail_id"],mail_obj)
+            e["etat"]="Done"
+            data["etat"]="Ready for WMS"
+        else:
+            flag_mail(to_bytes(e["mail_id"]),mail_obj)
+            e["etat"]="No attachment"
+            data["etat"]="No attachment"
+            print("No attatchments in mail "+e["mail_id"])
+    elif data["order_type"]=="update_order":# not finished
+        flag_mail(to_bytes(e["mail_id"]),mail_obj)
+        data["etat"]="Not treated yet"
+    elif data["order_type"]=="cancel_order":
+        flag_mail(to_bytes(e["mail_id"]),mail_obj)
+        data["etat"]="Not treated yet"
+    else:
+        flag_mail(to_bytes(e["mail_id"]),mail_obj)
+        data["etat"]="Not treated yet"
+    return e,data
+
+
+def file_order(e,data,order_directory_path):
+    parametres=read_json_file("parametres.json")
+    mail_file_path=order_directory_path+"/"+"mail"+str(data["local_mail_id"])+".json"
+    order_file_path=order_directory_path+"/"+"order"+str(data["local_order_id"])+".json"
+
+    append_jsonl_file(data,parametres["main_directory_path"]+"/"+"orders.jsonl")
+    create_json_file(e,mail_file_path)
+    create_json_file(data,order_file_path)
+
+
 def analyse_order(e, mail_obj, data):
 
     parametres=read_json_file("parametres.json")
 
     if data.get("is_order_related",False)==True:
 
-        parametres=read_json_file("parametres.json")
         data={"local_order_id":parametres.get("next_local_order_id",1), **data}
         parametres["next_local_order_id"]=data["local_order_id"]+1
         create_json_file(parametres,"parametres.json")
 
-        path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))+"/"
-        mail_file_path=path+"mail"+str(data["local_mail_id"])+".json"
-        order_file_path=path+"order"+str(data["local_order_id"])+".json"
+        order_directory_path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))+"/"
 
-        e["etat"]="Pending"
-        data["etat"]="Pending"
-        if data.get("needs_human_interferance",False)==True:
+        if data.get("needs_human_interferance",True)==True:
+            data["etat"]="Pending"
             e["etat"]="Must review"
-            data["etat"]="Not treated yet"
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
         else:
-            if data["order_type"]=="new_order":
-                if len(e["Attachments"])>0:
-                    create_data_files(data["local_order_id"],"new_mail.json",path)
-                    stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
-                    data=add_to_order(data,stocker_data)
-                    remplir_excel(data)
-                    if parametres.get("auto_reply",False)==True:
-                        reply_to_mail(e["mail_id"])
-                    e["etat"]="Done"
-                    data["etat"]="Ready for WMS"
-                else:
-                    print("No attatchments in mail "+e["mail_id"])
-            elif data["order_type"]=="update_order":# not finished
-                pass
-            elif data["order_type"]=="cancel_order":
-                pass
-            else:
-                pass
+            e,data=process_order(e,mail_obj,data,order_directory_path)
+            unflag_mail(to_bytes(e["mail_id"]),mail_obj)
 
-        append_jsonl_file(data,parametres["main_directory_path"]+"/"+"orders.jsonl")
-        create_json_file(e,mail_file_path)
-        create_json_file(data,order_file_path)
+        file_order(e,data,order_directory_path)
 
     else:
         e["etat"]="Rejected"
@@ -687,8 +808,7 @@ def analyse_order(e, mail_obj, data):
 
     append_jsonl_file(e,parametres["main_directory_path"]+"/"+"all_mails.jsonl")
 
-    print(data["etat"])
-    return data["etat"]
+    print(data.get("etat","No data status"))
 
 
 #--------------------------Mains-------------------------
@@ -700,7 +820,7 @@ def main():
     print("RUNNING...")
 
     parametres=read_json_file("parametres.json")
-
+    parametres["stop"]=False
     if parametres.get("model",False)==False:
         print("Error: No model!")
         os._exit(1)
@@ -716,14 +836,23 @@ def main():
 
         if len(ids)>0:
             for id in ids:
-                
-                mail_extractor(id,mail,"new_mail.json")
 
-                e=read_json_file("new_mail.json")
+                if is_mail_flagged(id,mail):
+                    print("Old mail!")
+                    e,data=search_mail_order(str(id))
+                    odp=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))
+                    process_order(e,mail,data,odp)
+                    file_order(e,data,odp)
+                    append_jsonl_file(e,parametres["main_directory_path"]+"/"+"all_mails.jsonl")
+                else:
+                    print("New mail!")
+                    mail_extractor(id,mail,"new_mail.json")
 
-                data=analyse_mail(e,chain)   
+                    e=read_json_file("new_mail.json")
 
-                analyse_order(e,mail,data)
+                    data=analyse_mail(e,chain)   
+
+                    analyse_order(e,mail,data)
 
                 print()
 
