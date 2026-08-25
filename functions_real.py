@@ -330,6 +330,12 @@ def unsee_mail(id,mail_obj):
     return "Email Unseen!"
 
 
+def see_mail(id,mail_obj):
+    mail_obj.store(id,"+FLAGS","\\SEEN")
+    print("Email Seen!")
+    return "Email Seen!"
+
+
 def flag_mail(id,mail_obj):
     mail_obj.store(id,"+FLAGS","\\FLAGGED")
     print("Email Flagged!")
@@ -402,6 +408,14 @@ def reply_to_mail(i,mail_obj):
 #----------------------Client/Stocker functions---------
 
 
+def is_valid_client(path,client,stocker):
+    l=clients_stockers_pairs(path)
+    for cl,st in l:
+        if cl==client and st==stocker:
+            return True
+    return False
+
+
 def search_mail_order(mid=None,lmid=None,loid=None):
     parametres=read_json_file("parametres.json")
 
@@ -411,6 +425,8 @@ def search_mail_order(mid=None,lmid=None,loid=None):
     mails=read_jsonl_file(mails_file_path)
     orders=read_jsonl_file(orders_file_path)
 
+    mail={}
+    order={}
     i=0
     for mail in mails:
         if mid==None or lmid==None:
@@ -423,6 +439,8 @@ def search_mail_order(mid=None,lmid=None,loid=None):
                 break
         i+=1
 
+    lmid=mail["local_mail_id"]
+
     j=0
     for order in orders:
         if order["local_order_id"]==loid or order["local_mail_id"]==lmid:
@@ -430,9 +448,11 @@ def search_mail_order(mid=None,lmid=None,loid=None):
             break
         j+=1
 
-
     create_jsonl_file(mails,mails_file_path)
     create_jsonl_file(orders,orders_file_path)
+
+    create_json_file(mail,os.path.join(parametres["main_directory_path"],"temp_mail.json"))
+    create_json_file(order,os.path.join(parametres["main_directory_path"],"temp_order.json"))
 
     return mail,order
      
@@ -527,6 +547,20 @@ def add_to_order(order_data,stocker_data):
 #------------------------Main functions---------------
 
 
+def check_temp_files():
+    parametres=read_json_file("parametres.json")
+    mp=parametres["main_directory_path"]
+    mail=read_json_file(os.path.join(mp,"temp_mail.json"))
+    order=read_json_file(os.path.join(mp,"temp_order.json"))
+    if mail!={}:
+        append_jsonl_file(mail,os.path.join(mp,"temp_mail.json"))
+        empty_file(os.path.join(mp,"temp_mail.json"))
+    if order!={}:
+        append_jsonl_file(order,os.path.join(mp,"temp_order.json"))
+        empty_file(os.path.join(mp,"temp_order.json"))
+    
+
+
 def update_order(path,data):
     orders_file_path=os.path.join(path,"orders.jsonl")
     mails_file_path=os.path.join(path,"all_mails.jsonl")
@@ -542,6 +576,7 @@ def update_order(path,data):
         data["is_registered"]=True
     else:
         data["is_registered"]=False
+
     is_ord_rel=data.get("is_order_related",False)
     if is_ord_rel=="True":
         data["is_order_related"]=True
@@ -679,7 +714,7 @@ def create_data_files(order_id,mail_file,path):
 
 def mail_extractor(id,mail_obj,mail_file):
 
-    e=dict(mail_id=str,local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachments=list)
+    e=dict(mail_id=str,local_mail_id=int,From=str,To=str,Subject=str,Date=str,Body=str,Attachments=list,etat="Pending")
     
     result,msg_data = mail_obj.fetch(id, "(RFC822)")
     raw_email = msg_data[0][1]
@@ -744,30 +779,37 @@ def analyse_mail(e,chain):
 
 def process_order(e,mail_obj,data,order_dir_path):
     parametres=read_json_file("parametres.json")
-    if data["order_type"]=="new_order":
-        if len(e["Attachments"])>0:
-            create_data_files(data["local_order_id"],"new_mail.json",order_dir_path)
-            stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
-            data=add_to_order(data,stocker_data)
-            remplir_excel(data)
-            if parametres.get("auto_reply",False)==True:
-                reply_to_mail(e["mail_id"],mail_obj)
-            e["etat"]="Done"
-            data["etat"]="Ready for WMS"
+    if is_valid_client(parametres["main_directory_path"],data.get("company","").upper(),data.get("stockeur","").upper()):
+        data["is_registered"]=True
+        if data["order_type"]=="new_order":
+            if len(e["Attachments"])>0:
+                create_data_files(data["local_order_id"],"new_mail.json",order_dir_path)
+                stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
+                data=add_to_order(data,stocker_data)
+                remplir_excel(data)
+                if parametres.get("auto_reply",False)==True:
+                    reply_to_mail(e["mail_id"],mail_obj)
+                e["etat"]="Done"
+                data["etat"]="Ready for WMS"
+            else:
+                flag_mail(to_bytes(e["mail_id"]),mail_obj)
+                e["etat"]="No attachment"
+                data["etat"]="No attachment"
+                print("No attatchments in mail "+e["mail_id"])
+        elif data["order_type"]=="update_order":# not finished
+            flag_mail(to_bytes(e["mail_id"]),mail_obj)
+            data["etat"]="Not supported order_type yet"
+        elif data["order_type"]=="cancel_order":
+            flag_mail(to_bytes(e["mail_id"]),mail_obj)
+            data["etat"]="Not supported order_type yet"
         else:
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            e["etat"]="No attachment"
-            data["etat"]="No attachment"
-            print("No attatchments in mail "+e["mail_id"])
-    elif data["order_type"]=="update_order":# not finished
-        flag_mail(to_bytes(e["mail_id"]),mail_obj)
-        data["etat"]="Not treated yet"
-    elif data["order_type"]=="cancel_order":
-        flag_mail(to_bytes(e["mail_id"]),mail_obj)
-        data["etat"]="Not treated yet"
+            data["etat"]="Not supported order_type yet"
     else:
+        data["is_registered"]=False
         flag_mail(to_bytes(e["mail_id"]),mail_obj)
-        data["etat"]="Not treated yet"
+        data["etat"]="Lack details"
+        e["etat"]="Client Unkwon"
     return e,data
 
 
@@ -777,6 +819,10 @@ def file_order(e,data,order_directory_path):
     order_file_path=order_directory_path+"/"+"order"+str(data["local_order_id"])+".json"
 
     append_jsonl_file(data,parametres["main_directory_path"]+"/"+"orders.jsonl")
+
+    empty_file(os.path.join(parametres["main_directory_path"],"temp_mail.json"))
+    empty_file(os.path.join(parametres["main_directory_path"],"temp_order.json"))
+
     create_json_file(e,mail_file_path)
     create_json_file(data,order_file_path)
 
@@ -799,7 +845,6 @@ def analyse_order(e, mail_obj, data):
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
         else:
             e,data=process_order(e,mail_obj,data,order_directory_path)
-            unflag_mail(to_bytes(e["mail_id"]),mail_obj)
 
         file_order(e,data,order_directory_path)
 
@@ -823,7 +868,7 @@ def main():
     print("RUNNING...")
 
     parametres=read_json_file("parametres.json")
-    parametres["stop"]=False
+    
     if parametres.get("model",False)==False:
         print("Error: No model!")
         os._exit(1)
@@ -831,21 +876,26 @@ def main():
 
     mail=log_in()
 
-    while parametres.get("stop",False)==False:
+    while parametres.get("slow_stop",False)==False:
         print("Listening for emails...")
+        print()
+
         ids=extract_mail_ids(mail)
         print(len(ids),"emails has been found.")
         print()
 
         if len(ids)>0:
             for id in ids:
-
+                #check_temp_files()
                 if is_mail_flagged(id,mail):
                     print("Old mail!")
-                    e,data=search_mail_order(mid=str(id),lmid=e["local_mail_id"])
+                    e,data=search_mail_order(mid=str(id))
                     odp=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))
-                    process_order(e,mail,data,odp)
+                    e,data=process_order(e,mail,data,odp)
                     file_order(e,data,odp)
+                    see_mail(id,mail)
+                    if data.get("etat",None)=="Ready for WMS":
+                        unflag_mail(id,mail)
                     append_jsonl_file(e,parametres["main_directory_path"]+"/"+"all_mails.jsonl")
                 else:
                     print("New mail!")
@@ -858,6 +908,11 @@ def main():
                     analyse_order(e,mail,data)
 
                 print()
+
+            if parametres.get("fast_stop",False)==True:
+                parametres["slow_stop"]=True
+                create_json_file(parametres,"parametres.json")
+                break
 
         sleep(parametres["delay"])
         parametres=read_json_file("parametres.json")
@@ -905,7 +960,7 @@ def web_main(): # a reconstruire
     yield affiche_html("Logging in...","h2")
     mail=log_in()
 
-    while parametres.get("stop",False)==False:
+    while parametres.get("slow_stop",False)==False:
         yield affiche_html("Listening for emails...","h2")
         ids=extract_mail_ids(mail)
         yield affiche_html(str(len(ids))+" emails has been found.","h2")

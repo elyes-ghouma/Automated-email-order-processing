@@ -54,11 +54,12 @@ FIELD RULES
    If false: interferance_reason = null.
 
 4. order_type ("new_order" | "update_order" | "cancel_order" | null)
-   new_order = placing a new order.
+   new_order = placing a new order .
    update_order = modifying an existing order (quantity, address, date, items, etc).
    cancel_order = explicit cancel/stop/void request.
    null = not order-related, or type genuinely can't be determined.
    No other values allowed, ever (no "modification", "unknown", "other", etc).
+  Note: If is_order_related = true and there is no clear indication that the order is an update or cancellation, default to "new_order".
 
 5. urgency ("urgent" | "not_urgent")
    "urgent" only for clear signals: "URGENT", "ASAP", "same day", explicit immediate

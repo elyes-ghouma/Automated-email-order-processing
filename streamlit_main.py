@@ -22,8 +22,7 @@ st.set_page_config(
 )
 
 # Initialize persistent session states
-
-default_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Projet_Planification")
+default_dir = os.path.join(os.path.expanduser("~"), "Desktop")
 if "work_folder" not in st.session_state:
     st.session_state["work_folder"] = default_dir
 
@@ -54,46 +53,58 @@ with st.sidebar:
                 st.rerun()
 
     # Dynamic path update based on active workspace
-    
     path = st.session_state["work_folder"]
 
     if path and not os.path.exists(path):
         set_main_folder_path(path)
-        parametres=read_json_file("parametres.json")
-        path=parametres["main_directory_path"]
+        parametres = read_json_file("parametres.json")
+        path = parametres["main_directory_path"]
         st.success("Work folder created!")
     else:
         set_main_folder_path(path)
-        parametres=read_json_file("parametres.json")
-        path=parametres["main_directory_path"]
+        parametres = read_json_file("parametres.json")
+        path = parametres["main_directory_path"]
         st.caption(f"Active Path: `{path}`")
 
     st.markdown("---")
     
-    # 2. IMAP Credentials
-    st.subheader("2. IMAP Account")
-    email_user = st.text_input("Email Address", value="")
-    email_pass = st.text_input("Password / App Password", type="password")
-    
-    st.markdown("---")
-    
-    # 3. Execution Button
+    # 2. Execution & Stop Controls
     btn_analyse = st.button("🚀 Analyse Mails", type="primary", use_container_width=True)
+    
+    col_fast, col_slow = st.columns(2)
+    with col_fast:
+        btn_fast_stop = st.button("⚡ Fast Stop", use_container_width=True)
+    with col_slow:
+        btn_slow_stop = st.button("🐢 Slow Stop", use_container_width=True)
+
+    # --- Direct JSON File Parameter Control ---
+    if btn_fast_stop:
+        parametres=read_json_file("parametres.json")
+        parametres["fast_stop"]=True
+        parametres["slow_stop"]=True
+        create_json_file(parametres,"parametres.json")
+        st.error("⚡ Immediate Fast Stop requested in config.")
+
+    if btn_slow_stop:
+        parametres=read_json_file("parametres.json")
+        parametres["slow_stop"]=True
+        create_json_file(parametres,"parametres.json")
+        st.warning("🐢 Graceful Slow Stop requested in config.")
 
 st.title("📦 Email & Order Processing Hub")
 
 # Trigger IMAP & Ollama pipeline when button is clicked
 if btn_analyse:
-    if not email_user or not email_pass:
-        st.error("Please fill in your Email and Password in the sidebar before analyzing.")
-    else:
-        with st.spinner("Connecting to inbox, downloading attachments, and analyzing mails..."):
-            try:
-
-                main()
-                
-                st.success("Analysis complete!")
-            except Exception as e:
+    with st.spinner("Connecting to inbox, downloading attachments, and analyzing mails..."):
+        try:
+            parametres=read_json_file("parametres.json")
+            parametres["fast_stop"]=False
+            parametres["slow_stop"]=False
+            create_json_file(parametres,"parametres.json")
+            main()
+            st.success("Analysis complete!")
+        except Exception as e:
+            with st.sidebar:
                 st.error(f"Error during execution: {e}")
 
 # ==========================================
@@ -293,7 +304,7 @@ with tab6:
                 with st.form("edit_order_form"):
                     edited_fields = {}
                     for k, v in target_order.items():
-                        if k == "local_mail_id" or k=="local_order_id":
+                        if k == "local_mail_id" or k == "local_order_id":
                             st.text_input(f"{k} (Read-Only)", value=str(v), disabled=True)
                             edited_fields[k] = v
                         else:
