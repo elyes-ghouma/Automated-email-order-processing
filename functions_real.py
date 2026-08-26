@@ -798,13 +798,13 @@ def process_order(e,mail_obj,data,order_dir_path):
                 print("No attatchments in mail "+e["mail_id"])
         elif data["order_type"]=="update_order":# not finished
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type yet"
+            data["etat"]="Not supported order_type"
         elif data["order_type"]=="cancel_order":
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type yet"
+            data["etat"]="Not supported order_type"
         else:
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type yet"
+            data["etat"]="Not supported order_type"
     else:
         data["is_registered"]=False
         flag_mail(to_bytes(e["mail_id"]),mail_obj)
@@ -876,7 +876,8 @@ def main():
 
     mail=log_in()
 
-    while parametres.get("slow_stop",False)==False:
+    stop=False
+    while not stop:
         print("Listening for emails...")
         print()
 
@@ -900,19 +901,20 @@ def main():
                 else:
                     print("New mail!")
                     mail_extractor(id,mail,"new_mail.json")
-
                     e=read_json_file("new_mail.json")
-
                     data=analyse_mail(e,chain)   
-
                     analyse_order(e,mail,data)
 
                 print()
 
-            if parametres.get("fast_stop",False)==True:
-                parametres["slow_stop"]=True
-                create_json_file(parametres,"parametres.json")
-                break
+                if parametres.get("fast_stop",False)==True:
+                    parametres["slow_stop"]=True
+                    create_json_file(parametres,"parametres.json")
+                    stop=True
+                    break
+
+        if parametres.get("slow_stop",True)==True:
+            stop=True
 
         sleep(parametres["delay"])
         parametres=read_json_file("parametres.json")
