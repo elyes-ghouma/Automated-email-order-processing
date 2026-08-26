@@ -654,16 +654,15 @@ def update_order(path,data):
         append_jsonl_file(mail,mails_file_path)
 
             
-def remplir_excel(order_data):
+def remplir_excel(order_data,order_path):
     wb = openpyxl.load_workbook("sage_form_vide_rxl.xlsm",keep_vba=True)
 
     order_id=order_data["local_order_id"]
     param=read_json_file("parametres.json")
-    path=param["orders_directory_path"]+"/"+"Order"+str(order_id)+"/"
 
-    date_data=read_json_file(path+"date"+str(order_id)+".json")
+    date_data=read_json_file(order_path+"/"+"date"+str(order_id)+".json")
 
-    detail_data=read_jsonl_file(path+"detail"+str(order_id)+".jsonl")
+    detail_data=read_jsonl_file(order_path+"/"+"detail"+str(order_id)+".jsonl")
 
     sheet1=wb["Entête Livraison"]
     cols1=["D","E","F","K","P","R","S"]
@@ -713,7 +712,7 @@ def remplir_excel(order_data):
                 sheet3[cols3_2[j]+str(i)]=0
         i+=1
 
-    wb.save(path+"sage_form"+str(order_id)+".xlsm")
+    wb.save(order_path+"/"+"sage_form"+str(order_id)+".xlsm")
 
 
 def create_data_files(order_id,mail_file,path): 
@@ -834,7 +833,7 @@ def process_order(e,mail_obj,data,order_dir_path):
                 create_data_files(data["local_order_id"],"new_mail.json",order_dir_path)
                 stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["main_directory_path"])
                 data=add_to_order(data,stocker_data)
-                remplir_excel(data)
+                remplir_excel(data,order_dir_path)
                 if parametres.get("auto_reply",False)==True:
                     reply_to_mail(e["mail_id"],mail_obj)
                 e["etat"]="Done"
@@ -939,7 +938,7 @@ def main():
                 if is_mail_flagged(id,mail):
                     print("Old mail!")
                     e,data=search_mail_order(mid=str(id))
-                    odp=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))
+                    odp=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))
                     e,data=process_order(e,mail,data,odp)
                     file_order(e,data,odp)
                     see_mail(id,mail)
