@@ -1,5 +1,5 @@
 from flask import Flask, Response, render_template_string, send_file
-from functions_real import *
+from functions import *
 
 app = Flask(__name__)
 

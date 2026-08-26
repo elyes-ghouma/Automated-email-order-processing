@@ -883,7 +883,7 @@ def analyse_order(e, mail_obj, data):
         data={"local_order_id":parametres.get("next_local_order_id",1), **data}
         parametres["next_local_order_id"]=data["local_order_id"]+1
         create_json_file(parametres,"parametres.json")
-
+        
         order_directory_path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))+"/"
 
         if data.get("needs_human_interferance",True)==True:
@@ -954,17 +954,19 @@ def main():
 
                 print()
 
+                parametres=read_json_file("parametres.json")
                 if parametres.get("fast_stop",False)==True:
+                
                     parametres["slow_stop"]=True
                     create_json_file(parametres,"parametres.json")
                     stop=True
                     break
 
+        parametres=read_json_file("parametres.json")
         if parametres.get("slow_stop",True)==True:
             stop=True
 
         sleep(parametres["delay"])
-        parametres=read_json_file("parametres.json")
         print()
 
     log_out(mail)

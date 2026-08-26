@@ -27,7 +27,7 @@ clients.json should be in the folder of work+++++++++++
 read excel after giving an order id ++++++-??
 l ids b3d el result+++++++++++--??
 what to do in case of an error+++++++++--------
-translate to french-
+translate to french--
 create main prog or interface or whatever+++
 search mail and search order functions +++
 add rerun button which re give the mail to the agent---¬!
@@ -35,7 +35,14 @@ and make the update only go throught the order processing +++
 add show clients+++
 how to stop ++
 fix order type confusion for the agent++
-make the show tabs first then the add and edit
+make the show tabs first then the add and edit++
 add saftey mesures when mail and order gets removed
+
+Execution Safeguards & Timeouts
+File System Access & File Size Limits
+Streamlit Session & UI Hardening
+Local File Encryption
+FastAPI backend with a React frontend (if the project is multi-user in multiple departments)
+
 
 chnawa smart send?

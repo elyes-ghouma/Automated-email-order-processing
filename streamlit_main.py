@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import filedialog
 import pandas as pd
 import streamlit as st
-from functions_real import *
+from functions import *
 
 # Helper function to launch native OS Folder Browser
 def select_folder():
