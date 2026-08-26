@@ -1,6 +1,9 @@
-langchain
+langchain-core
 langchain-ollama
-langchain-chroma
-flask
-pandas openpyxl xlrd
+python-dotenv
+pandas
+openpyxl
+ollama
+python-dateutil
 streamlit
+flask

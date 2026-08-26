@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from ast import literal_eval
 from flask import send_file
+from dateutil import parser
 from time import sleep
 from copy import copy
 import pandas as pd
@@ -200,6 +201,54 @@ def create_directory(path,folder_name):
 
 
 #---------------------------Other functions----------------------------------
+
+
+def normalize_to_ddmmyy(date_val: str | int | float | None, delimiter: str = "") -> str:
+    """
+    Template function to convert any date representation into 'ddmmyy' format.
+    
+    Args:
+        date_val: The date input (ISO string, RFC 2822, timestamp, etc.)
+        delimiter: Separator between day, month, year. 
+                   Use "" for '250826'
+                   Use "/" for '25/08/26'
+                   Use "-" for '25-08-26'
+    
+    Returns:
+        Formatted string in ddmmyy. Returns empty string if parsing fails.
+    """
+    if not date_val:
+        return ""
+
+    dt = None
+
+    # 1. Handle Epoch Timestamps (integers or floats)
+    if isinstance(date_val, (int, float)):
+        try:
+            dt = datetime.fromtimestamp(date_val)
+        except Exception:
+            return ""
+
+    # 2. Handle String Formats
+    elif isinstance(date_val, str):
+        cleaned_str = date_val.strip()
+
+        # Handle numeric string timestamps (e.g., "1724587200")
+        if cleaned_str.isdigit():
+            dt = datetime.fromtimestamp(float(cleaned_str))
+        else:
+            try:
+                # Fuzzy parsing handles ISO 8601, RFC 2822, and standard locale dates
+                dt = parser.parse(cleaned_str)
+            except (ValueError, TypeError):
+                return ""
+
+    # 3. Format into ddmmyy (%d = day, %m = month, %y = 2-digit year)
+    if dt:
+        format_pattern = f"%d{delimiter}%m{delimiter}%y"
+        return dt.strftime(format_pattern)
+
+    return ""
 
 
 def to_bytes(x: str) -> bytes:
@@ -560,7 +609,6 @@ def check_temp_files():
         empty_file(os.path.join(mp,"temp_order.json"))
     
 
-
 def update_order(path,data):
     orders_file_path=os.path.join(path,"orders.jsonl")
     mails_file_path=os.path.join(path,"all_mails.jsonl")
@@ -837,7 +885,7 @@ def analyse_order(e, mail_obj, data):
         parametres["next_local_order_id"]=data["local_order_id"]+1
         create_json_file(parametres,"parametres.json")
 
-        order_directory_path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"]))+"/"
+        order_directory_path=create_directory(parametres["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))+"/"
 
         if data.get("needs_human_interferance",True)==True:
             data["etat"]="Pending"

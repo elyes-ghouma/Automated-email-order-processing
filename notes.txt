@@ -34,7 +34,8 @@ add rerun button which re give the mail to the agent---¬!
 and make the update only go throught the order processing +++
 add show clients+++
 how to stop ++
-add saftey mesures when mail and order gets removed-+
 fix order type confusion for the agent++
+make the show tabs first then the add and edit
+add saftey mesures when mail and order gets removed
 
 chnawa smart send?

@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 # Initialize persistent session states
-default_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+default_dir = os.path.join(os.path.expanduser("~"), "Desktop/Projet_Planification")
 if "work_folder" not in st.session_state:
     st.session_state["work_folder"] = default_dir
 
@@ -178,94 +178,26 @@ if st.session_state["trigger_main"]:
 if st.session_state["is_running"]:
     st.warning("⏳ Execution in progress... Tab controls and database entries are locked.")
 else:
+    # Updated tab order: Show Orders first, Add Client before Edit Order
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "👥 Add Client / Add Stocker",
-        "🏢 Show Clients",
         "📊 Show Orders",
+        "🏢 Show Clients",
         "📧 Show Non Orders",
         "📩 Show Mails",
+        "👥 Add Client / Add Stocker",
         "✏️ Edit Order"
     ])
 
     # ------------------------------------------
-    # 1. ADD CLIENT / ADD STOCKER SECTION
+    # 1. SHOW ORDERS SECTION
     # ------------------------------------------
     with tab1:
-        st.header("Manage Clients & Stocker Locations")
-        
-        col_client, col_stocker = st.columns(2)
-        
-        with col_client:
-            st.subheader("Add New Client")
-            with st.form("add_client_form", clear_on_submit=True):
-                company_name = st.text_input("Company Name *").upper()
-                st.markdown("**Initial Stocker Details:**")
-                stockeur_name = st.text_input("Stockeur * (e.g., CO3 CMS)").upper()
-                num_stockeur = st.text_input("Num Stockeur *").upper()
-                num_dep = st.text_input("Num Département *").upper()
-                ville = st.text_input("Ville *").upper()
-                pays = st.text_input("Pays *").upper()
-                
-                submit_client = st.form_submit_button("Add Client")
-                
-                if submit_client:
-                    if not (company_name and stockeur_name and num_stockeur and num_dep and ville and pays):
-                        st.error("All fields are mandatory!")
-                    elif any(c["company"] == company_name for c in read_jsonl_file(path+"/Clients.jsonl")):
-                        st.warning(f"Company '{company_name}' already exists.")
-                    else:
-                        new_client = {
-                            "company": company_name,
-                            "stockeurs": [
-                                {
-                                    "stockeur": stockeur_name,
-                                    "num_stockeur": num_stockeur,
-                                    "num_dep": num_dep,
-                                    "ville": ville,
-                                    "pays": pays
-                                }
-                            ]
-                        }
-                        add_client(path, new_client)
-                        st.success(f"Company '{company_name}' created with stockeur '{stockeur_name}'!")
-
-        with col_stocker:
-            st.subheader("Add Additional Stocker")
-            company_names = [c["company"] for c in read_jsonl_file(path+"/Clients.jsonl")]
-            if company_names:
-                with st.form("add_stocker_form", clear_on_submit=True):
-                    selected_company = st.selectbox("Select Company", company_names).upper()
-                    st.markdown("**New Stocker Details:**")
-                    extra_stockeur = st.text_input("Stockeur * (e.g., Dépôt Nord)").upper()
-                    extra_num_stockeur = st.text_input("Num Stockeur *").upper()
-                    extra_num_dep = st.text_input("Num Département *").upper()
-                    extra_ville = st.text_input("Ville *").upper()
-                    extra_pays = st.text_input("Pays *").upper()
-                    
-                    submit_stocker = st.form_submit_button("Add Stocker")
-                    
-                    if submit_stocker:
-                        if not (extra_stockeur and extra_num_stockeur and extra_num_dep and extra_ville and extra_pays):
-                            st.error("All Stocker fields are mandatory!")
-                        else:
-                            target_entry = next(c for c in read_jsonl_file(path+"/Clients.jsonl") if c["company"] == selected_company)
-                            
-                            if any(s["stockeur"] == extra_stockeur for s in target_entry["stockeurs"]):
-                                st.warning("A stockeur with this name already exists for this company.")
-                            else:
-                                new_stockeur_obj = {
-                                    "stockeur": extra_stockeur,
-                                    "num_stockeur": extra_num_stockeur,
-                                    "num_dep": extra_num_dep,
-                                    "ville": extra_ville,
-                                    "pays": extra_pays
-                                }
-                                add_stocker(target_entry["company"], path, new_stockeur_obj)
-                                st.success(f"Stockeur '{extra_stockeur}' added to {selected_company}!")
-            else:
-                st.info("No companies registered yet in the current working directory.")
-
-        st.markdown("---")
+        st.header("Validated Order Requests")
+        orders = read_jsonl_file(os.path.join(path, "orders.jsonl"))
+        if orders:
+            st.dataframe(pd.DataFrame(orders), use_container_width=True)
+        else:
+            st.info("No valid orders found yet. Click 'Start Analysis' to process your inbox.")
 
     # ------------------------------------------
     # 2. SHOW CLIENTS SECTION
@@ -305,37 +237,110 @@ else:
             st.info("No Clients.jsonl file found yet.")
 
     # ------------------------------------------
-    # 3. SHOW ORDERS SECTION
+    # 3. SHOW NON ORDERS SECTION
     # ------------------------------------------
     with tab3:
-        st.header("Validated Order Requests")
-        orders = read_jsonl_file(os.path.join(path,"orders.jsonl"))
-        if orders:
-            st.dataframe(pd.DataFrame(orders), use_container_width=True)
-        else:
-            st.info("No valid orders found yet. Click 'Start Analysis' to process your inbox.")
-
-    # ------------------------------------------
-    # 4. SHOW NON ORDERS SECTION
-    # ------------------------------------------
-    with tab4:
         st.header("Non-Order Emails")
-        non_orders = read_jsonl_file(os.path.join(path,"non_orders.jsonl"))
+        non_orders = read_jsonl_file(os.path.join(path, "non_orders.jsonl"))
         if non_orders:
             st.dataframe(pd.DataFrame(non_orders), use_container_width=True)
         else:
             st.info("No non-order emails found.")
 
     # ------------------------------------------
-    # 5. SHOW MAILS SECTION
+    # 4. SHOW MAILS SECTION
     # ------------------------------------------
-    with tab5:
+    with tab4:
         st.header("All Processed Emails")
-        emails = read_jsonl_file(os.path.join(path,"all_mails.jsonl"))
+        emails = read_jsonl_file(os.path.join(path, "all_mails.jsonl"))
         if emails:
             st.dataframe(pd.DataFrame(emails), use_container_width=True)
         else:
             st.info("No email records loaded.")
+
+    # ------------------------------------------
+    # 5. ADD CLIENT / ADD STOCKER SECTION
+    # ------------------------------------------
+    with tab5:
+        st.header("Manage Clients & Stocker Locations")
+        
+        col_client, col_stocker = st.columns(2)
+        
+        # --- Form 1: Add New Client ---
+        with col_client:
+            st.subheader("Add New Client")
+            with st.form("add_client_form", clear_on_submit=True):
+                company_name = st.text_input("Company Name *").upper()
+                st.markdown("**Initial Stocker Details:**")
+                stockeur_name = st.text_input("Stockeur * (e.g., CO3 CMS)").upper()
+                num_stockeur = st.text_input("Num Stockeur *").upper()
+                num_dep = st.text_input("Num Département *").upper()
+                ville = st.text_input("Ville *").upper()
+                pays = st.text_input("Pays *").upper()
+                
+                submit_client = st.form_submit_button("Add Client")
+                
+                if submit_client:
+                    if not (company_name and stockeur_name and num_stockeur and num_dep and ville and pays):
+                        st.error("All fields are mandatory!")
+                    elif any(c["company"] == company_name for c in read_jsonl_file(os.path.join(path, "Clients.jsonl"))):
+                        st.warning(f"Company '{company_name}' already exists.")
+                    else:
+                        new_client = {
+                            "company": company_name,
+                            "stockeurs": [
+                                {
+                                    "stockeur": stockeur_name,
+                                    "num_stockeur": num_stockeur,
+                                    "num_dep": num_dep,
+                                    "ville": ville,
+                                    "pays": pays
+                                }
+                            ]
+                        }
+                        add_client(path, new_client)
+                        st.success(f"Company '{company_name}' created with stockeur '{stockeur_name}'!")
+
+        # --- Form 2: Add Additional Stocker ---
+        with col_stocker:
+            st.subheader("Add Additional Stocker")
+            clients_list = read_jsonl_file(os.path.join(path, "Clients.jsonl"))
+            company_names = [c["company"] for c in clients_list] if clients_list else []
+            
+            if company_names:
+                with st.form("add_stocker_form", clear_on_submit=True):
+                    selected_company = st.selectbox("Select Company", company_names).upper()
+                    st.markdown("**New Stocker Details:**")
+                    extra_stockeur = st.text_input("Stockeur * (e.g., Dépôt Nord)").upper()
+                    extra_num_stockeur = st.text_input("Num Stockeur *").upper()
+                    extra_num_dep = st.text_input("Num Département *").upper()
+                    extra_ville = st.text_input("Ville *").upper()
+                    extra_pays = st.text_input("Pays *").upper()
+                    
+                    submit_stocker = st.form_submit_button("Add Stocker")
+                    
+                    if submit_stocker:
+                        if not (extra_stockeur and extra_num_stockeur and extra_num_dep and extra_ville and extra_pays):
+                            st.error("All Stocker fields are mandatory!")
+                        else:
+                            target_entry = next(c for c in clients_list if c["company"] == selected_company)
+                            
+                            if any(s["stockeur"] == extra_stockeur for s in target_entry.get("stockeurs", [])):
+                                st.warning("A stockeur with this name already exists for this company.")
+                            else:
+                                new_stockeur_obj = {
+                                    "stockeur": extra_stockeur,
+                                    "num_stockeur": extra_num_stockeur,
+                                    "num_dep": extra_num_dep,
+                                    "ville": extra_ville,
+                                    "pays": extra_pays
+                                }
+                                add_stocker(target_entry["company"], path, new_stockeur_obj)
+                                st.success(f"Stockeur '{extra_stockeur}' added to {selected_company}!")
+            else:
+                st.info("No companies registered yet in the current working directory.")
+
+        st.markdown("---")
 
     # ------------------------------------------
     # 6. EDIT ORDER SECTION
