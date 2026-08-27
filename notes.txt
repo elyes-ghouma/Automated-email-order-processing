@@ -37,6 +37,8 @@ how to stop ++
 fix order type confusion for the agent++
 make the show tabs first then the add and edit++
 add saftey mesures when mail and order gets removed
+add data structre supervisor when gotten from the agent
+add how many there is unseen mails
 
 Execution Safeguards & Timeouts
 File System Access & File Size Limits

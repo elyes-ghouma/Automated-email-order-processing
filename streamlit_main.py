@@ -26,6 +26,7 @@ st.set_page_config(
 )
 
 # Initialize persistent session states
+check_temp_files()
 default_dir = os.path.join(os.path.expanduser("~"), "Desktop/Projet_Planification")
 if "work_folder" not in st.session_state:
     st.session_state["work_folder"] = default_dir
@@ -72,12 +73,12 @@ with st.sidebar:
     if path and not os.path.exists(path):
         set_main_folder_path(path)
         parametres = read_json_file("parametres.json")
-        path = parametres["main_directory_path"]
+        path = parametres["paths"]["main_directory_path"]
         st.success("Work folder created!")
     else:
         set_main_folder_path(path)
         parametres = read_json_file("parametres.json")
-        path = parametres["main_directory_path"]
+        path = parametres["paths"]["main_directory_path"]
         st.caption(f"Active Path: `{path}`")
 
     st.markdown("---")
@@ -86,7 +87,7 @@ with st.sidebar:
     st.subheader("2. Processing Mode")
     exec_mode = st.radio(
         "Select Execution Strategy",
-        options=["⚡ Fast Execution", "🐢 Slow (Safe) Execution"],
+        options=["🐢 Slow (Safe) Execution", "⚡ Fast Execution"],
         help="Fast mode runs without extra delays; Slow mode pauses between requests to prevent rate limits.",
         disabled=st.session_state["is_running"]
     )
@@ -121,7 +122,7 @@ if btn_analyse:
     parametres = read_json_file("parametres.json")
     if "⚡ Fast" in exec_mode:
         parametres["fast_stop"] = True
-        parametres["slow_stop"] = True
+        parametres["slow_stop"] = False
     else:
         parametres["fast_stop"] = False
         parametres["slow_stop"] = True

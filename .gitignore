@@ -1,8 +1,7 @@
 .env
+notes.txt
 Vectorys Planification
 xl.csv
 new_mail.json
-__pycache__
 test.py
 test2.py
-notes.txt
