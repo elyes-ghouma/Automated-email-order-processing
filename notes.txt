@@ -36,9 +36,11 @@ add show clients+++
 how to stop ++
 fix order type confusion for the agent++
 make the show tabs first then the add and edit++
-add saftey mesures when mail and order gets removed
-add data structre supervisor when gotten from the agent
-add how many there is unseen mails
+add saftey mesures when mail and order gets removed+++
+add data structre supervisor when gotten from the agent++
+add how many there is unseen mails++
+pending mail is it pending in inbox or pending in database
+
 
 Execution Safeguards & Timeouts
 File System Access & File Size Limits

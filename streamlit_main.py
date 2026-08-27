@@ -18,6 +18,18 @@ def select_folder():
     root.destroy()
     return folder_path
 
+# Helper function to safely fetch unread mail count
+def get_unread_mail_count():
+    try:
+        # Calls helper from functions.py or IMAP checker
+        mail=log_in()
+        res=len(extract_mail_ids(mail))
+        log_out(mail)
+        return res
+    except Exception:
+        pass
+    return 0
+
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Email & Order Management",
@@ -102,6 +114,10 @@ with st.sidebar:
         disabled=st.session_state["is_running"]
     )
 
+    # --- Unread Mails Count Message ---
+    unread_count = get_unread_mail_count()
+    st.caption(f"📩 **Unread Mails in Inbox:** `{unread_count}` mail(s) pending")
+
     st.markdown("---")
     
     # 4. Console Logs Display
@@ -179,7 +195,6 @@ if st.session_state["trigger_main"]:
 if st.session_state["is_running"]:
     st.warning("⏳ Execution in progress... Tab controls and database entries are locked.")
 else:
-    # Updated tab order: Show Orders first, Add Client before Edit Order
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Show Orders",
         "🏢 Show Clients",
@@ -267,7 +282,6 @@ else:
         
         col_client, col_stocker = st.columns(2)
         
-        # --- Form 1: Add New Client ---
         with col_client:
             st.subheader("Add New Client")
             with st.form("add_client_form", clear_on_submit=True):
@@ -302,7 +316,6 @@ else:
                         add_client(path, new_client)
                         st.success(f"Company '{company_name}' created with stockeur '{stockeur_name}'!")
 
-        # --- Form 2: Add Additional Stocker ---
         with col_stocker:
             st.subheader("Add Additional Stocker")
             clients_list = read_jsonl_file(os.path.join(path, "Clients.jsonl"))

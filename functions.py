@@ -599,6 +599,24 @@ def add_to_order(order_data,stocker_data):
 #------------------------Main functions---------------
 
 
+def repair_data_dict(corrupt_data):
+    data={
+        "local_mail_id":None,
+        "is_order_related": False,
+        "needs_human_interferance": True,
+        "interferance_reason": None,
+        "company": None,
+        "stockeur": None,
+        "is_registered": False,
+        "order_type": None,
+        "urgency": None,
+        "raw_notes": None
+    }
+    for key in data.keys():
+        data[key]=corrupt_data.get(key,data[key])
+    return data
+    
+
 def check_temp_files():
     parametres=read_json_file("parametres.json")
     mp=parametres["paths"]["main_directory_path"]
@@ -720,18 +738,16 @@ def remplir_excel(order_data,order_path):
     wb.save(order_path+"/"+"sage_form"+str(order_id)+".xlsm")
 
 
-def create_data_files(order_id,mail_file,path): 
+def create_data_files(order_id,e,path): 
 
     parametres=read_json_file("parametres.json")
     chain=start_ai_agent(parametres["model"],parametres["paths"]["xls_reader_template"])
-
-    mail_data=read_json_file(mail_file)
     
-    if len(mail_data["Attachments"])==0:
+    if len(e["Attachments"])==0:
         print("No attachments")
         return None
     csv_file="xl.csv"
-    xl_to_csv(mail_data["Attachments"][0],csv_file)
+    xl_to_csv(e["Attachments"][0],csv_file)
     
     f=open(csv_file,"r",encoding="utf-8",errors="ignore")
 
@@ -835,7 +851,7 @@ def process_order(e,mail_obj,data,order_dir_path):
         data["is_registered"]=True
         if data["order_type"]=="new_order":
             if len(e["Attachments"])>0:
-                create_data_files(data["local_order_id"],"new_mail.json",order_dir_path)
+                create_data_files(data["local_order_id"],e,order_dir_path)
                 stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["paths"]["main_directory_path"])
                 data=add_to_order(data,stocker_data)
                 remplir_excel(data,order_dir_path)
@@ -956,6 +972,7 @@ def main():
                     mail_extractor(id,mail,"new_mail.json")
                     e=read_json_file("new_mail.json")
                     data=analyse_mail(e,chain)   
+                    data=repair_data_dict(data)
                     analyse_order(e,mail,data)
 
                 print()
