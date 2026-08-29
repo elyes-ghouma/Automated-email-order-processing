@@ -15,9 +15,11 @@ import smtplib
 import ollama
 import email
 import json
+import html
 import csv
 import os
 import re
+
 
 
 #--------------------------Initialazing functions-----------------------------
@@ -414,6 +416,10 @@ def is_mail_flagged(id ,mail_obj) -> bool:
     return False
 
 
+def make_email_safe(email_body):
+    return html.escape(email_body)
+
+
 def extract_mail_ids(mail_obj):
     result,data = mail_obj.search(None, "UNSEEN")
     ids = data[0].split()
@@ -681,7 +687,6 @@ def remplir_excel(order_data,order_path):
     wb = openpyxl.load_workbook(parametres["paths"]["sage_form_template.xlsm"],keep_vba=True)
 
     order_id=order_data["local_order_id"]
-    param=read_json_file("parametres.json")
 
     date_data=read_json_file(order_path+"/"+"date"+str(order_id)+".json")
 
@@ -793,12 +798,12 @@ def mail_extractor(id,mail_obj,mail_file):
     e["local_mail_id"]=parametres.get("next_local_mail_id",1)
     parametres["next_local_mail_id"]=e["local_mail_id"]+1
     create_json_file(parametres,"parametres.json")
-    e["From"] = msg["From"]
-    e["To"] = msg["To"]
-    e["Subject"] = msg["Subject"]
-    e["Date"] = msg["Date"]
+    e["From"] = make_email_safe(msg["From"])
+    e["To"] = make_email_safe(msg["To"])
+    e["Subject"] = make_email_safe(msg["Subject"])
+    e["Date"] = make_email_safe(msg["Date"])
     e["Attachments"]=[]
-    e["Body"]=None
+    e["Body"]=""
     
     # Target MIME types for Excel spreadsheets
     EXCEL_MIME_TYPES = {
@@ -861,23 +866,23 @@ def process_order(e,mail_obj,data,order_dir_path):
                 data["etat"]="Ready for WMS"
             else:
                 flag_mail(to_bytes(e["mail_id"]),mail_obj)
-                e["etat"]="No attachment"
-                data["etat"]="No attachment"
+                e["etat"]="No excel attachment"
+                data["etat"]="No excel attachment"
                 print("No attatchments in mail "+e["mail_id"])
         elif data["order_type"]=="update_order":# not finished
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type"
+            data["etat"]="Unsupported order_type"
         elif data["order_type"]=="cancel_order":
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type"
+            data["etat"]="Unsupported order_type"
         else:
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
-            data["etat"]="Not supported order_type"
+            data["etat"]="Unsupported order_type"
     else:
         data["is_registered"]=False
         flag_mail(to_bytes(e["mail_id"]),mail_obj)
         data["etat"]="Lack details"
-        e["etat"]="Client Unkwon"
+        e["etat"]="Client Unkown"
     return e,data
 
 
@@ -908,8 +913,8 @@ def analyse_order(e, mail_obj, data):
         order_directory_path=create_directory(parametres["paths"]["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))+"/"
 
         if data.get("needs_human_interferance",True)==True:
-            data["etat"]="Pending"
             e["etat"]="Must review"
+            data["etat"]="Pending"
             flag_mail(to_bytes(e["mail_id"]),mail_obj)
         else:
             e,data=process_order(e,mail_obj,data,order_directory_path)
@@ -925,6 +930,29 @@ def analyse_order(e, mail_obj, data):
     append_jsonl_file(e,parametres["paths"]["main_directory_path"]+"/"+"all_mails.jsonl")
 
     print(data.get("etat","No data status"))
+
+
+def process_new_mail(chain,mail_obj,mail_id):
+    print("New mail!")
+    mail_extractor(mail_id,mail_obj,"new_mail.json")
+    e=read_json_file("new_mail.json")
+    data=analyse_mail(e,chain)   
+    data=repair_data_dict(data)
+    analyse_order(e,mail_obj,data)
+
+
+def process_old_mail(parametres,mail_obj,mail_id):
+    print("Old mail!")
+    e,data=search_mail_order(mid=str(mail_id))
+    odp=create_directory(parametres["paths"]["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))
+    e,data=process_order(e,mail_obj,data,odp)
+    file_order(e,data,odp)
+    mark_mail_as_read(mail_id,mail_obj)
+    if data.get("etat",None)=="Ready for WMS":
+        unflag_mail(mail_id,mail_obj)
+    append_jsonl_file(e,parametres["paths"]["main_directory_path"]+"/"+"all_mails.jsonl")
+    empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_mail.json"))
+    empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_order.json"))
 
 
 #--------------------------Mains-------------------------
@@ -956,24 +984,9 @@ def main():
         if len(ids)>0:
             for id in ids:
                 if is_mail_flagged(id,mail):
-                    print("Old mail!")
-                    e,data=search_mail_order(mid=str(id))
-                    odp=create_directory(parametres["paths"]["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))
-                    e,data=process_order(e,mail,data,odp)
-                    file_order(e,data,odp)
-                    mark_mail_as_read(id,mail)
-                    if data.get("etat",None)=="Ready for WMS":
-                        unflag_mail(id,mail)
-                    append_jsonl_file(e,parametres["paths"]["main_directory_path"]+"/"+"all_mails.jsonl")
-                    empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_mail.json"))
-                    empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_order.json"))
+                    process_old_mail(parametres,mail,id)
                 else:
-                    print("New mail!")
-                    mail_extractor(id,mail,"new_mail.json")
-                    e=read_json_file("new_mail.json")
-                    data=analyse_mail(e,chain)   
-                    data=repair_data_dict(data)
-                    analyse_order(e,mail,data)
+                    process_new_mail(chain,mail,id)
 
                 print()
 

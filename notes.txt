@@ -40,7 +40,10 @@ add saftey mesures when mail and order gets removed+++
 add data structre supervisor when gotten from the agent++
 add how many there is unseen mails++
 pending mail is it pending in inbox or pending in database
-
+add sqlite3-
+make it more error cautious
+add mail content security analyse before processing+
+add rerun button
 
 Execution Safeguards & Timeouts
 File System Access & File Size Limits
