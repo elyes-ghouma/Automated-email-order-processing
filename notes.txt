@@ -44,6 +44,8 @@ add sqlite3-
 make it more error cautious
 add mail content security analyse before processing+
 add rerun button
+add a reset button
+
 
 Execution Safeguards & Timeouts
 File System Access & File Size Limits

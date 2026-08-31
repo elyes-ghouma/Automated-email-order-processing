@@ -1,3 +1,0 @@
-cd "path of the project" venv\Scripts\activate => py main.py
-
-ngrok http 5000 => open the link

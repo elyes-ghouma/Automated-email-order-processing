@@ -349,7 +349,7 @@ def log_in():
 
     EMAIL = os.getenv("EMAIL")
     APP_PASSWORD = os.getenv("PASSWORD")
-    DOMAINE = os.getenv("DOMAINE")
+    DOMAINE = "imap.gmail.com"
 
     # Connect to Gmail
     try:
