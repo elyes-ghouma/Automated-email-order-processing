@@ -2,10 +2,7 @@
   "paths": {
     "mail_reader_template": "templates/mail_template.txt",
     "xls_reader_template": "templates/excel_template.txt",
-    "sage_form_template.xlsm": "templates/sage_form_template.xlsm",
-    "main_directory_path": "C:\\Users\\ELITE\\Desktop/Projet_Planification/Vectorys Planification",
-    "orders_directory_path": "C:\\Users\\ELITE\\Desktop/Projet_Planification/Vectorys Planification/Orders",
-    "excel_files_directory_path": "C:\\Users\\ELITE\\Desktop/Projet_Planification/Vectorys Planification/Excel Files"
+    "sage_form_template.xlsm": "templates/sage_form_template.xlsm"
   },
   "delay": 5,
   "auto_reply": false,
