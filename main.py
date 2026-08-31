@@ -37,10 +37,20 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize persistent session states
+# Initialize persistent session states from parametres.json
 default_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+parametres = read_json_file("parametres.json")
+
+# 1. Load existing path from JSON or initialize default
+saved_path = parametres.get("paths", {}).get("main_directory_path")
+
 if "work_folder" not in st.session_state:
-    st.session_state["work_folder"] = default_dir
+    if saved_path and os.path.exists(saved_path):
+        st.session_state["work_folder"] = saved_path
+    else:
+        init_main_folder_path(default_dir)
+        parametres = read_json_file("parametres.json")
+        st.session_state["work_folder"] = parametres["paths"]["main_directory_path"]
 
 if "is_running" not in st.session_state:
     st.session_state["is_running"] = False
@@ -57,41 +67,39 @@ if "execution_logs" not in st.session_state:
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    # 1. Workspace Folder Selection with Native Picker
+    # 1. Workspace Folder Selection
     st.subheader("1. Working Directory")
     
     col_path, col_btn = st.columns([3, 1])
     
     with col_path:
-        work_folder = st.text_input(
+        input_folder = st.text_input(
             "📁 Folder Path", 
             value=st.session_state["work_folder"],
             label_visibility="collapsed",
             disabled=st.session_state["is_running"]
         )
-        st.session_state["work_folder"] = work_folder
+        
+        # Trigger update ONLY if the user typed a new path
+        if input_folder != st.session_state["work_folder"]:
+            init_main_folder_path(input_folder)
+            updated_params = read_json_file("parametres.json")
+            st.session_state["work_folder"] = updated_params["paths"]["main_directory_path"]
+            st.rerun()
 
     with col_btn:
         if st.button("📂 Browse", use_container_width=True, disabled=st.session_state["is_running"]):
             selected = select_folder()
             if selected:
-                st.session_state["work_folder"] = selected
+                init_main_folder_path(selected)
+                updated_params = read_json_file("parametres.json")
+                st.session_state["work_folder"] = updated_params["paths"]["main_directory_path"]
                 st.rerun()
 
-    # Dynamic path update based on active workspace
+    # Active path display
     path = st.session_state["work_folder"]
-
-    if path and not os.path.exists(path):
-        set_main_folder_path(path)
-        parametres = read_json_file("parametres.json")
-        path = parametres["paths"]["main_directory_path"]
-        st.success("Work folder created!")
-    else:
-        set_main_folder_path(path)
-        parametres = read_json_file("parametres.json")
-        path = parametres["paths"]["main_directory_path"]
-        st.caption(f"Active Path: `{path}`")
-        
+    st.caption(f"Active Path: `{path}`")
+  
     check_temp_files()
 
     st.markdown("---")

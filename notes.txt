@@ -45,7 +45,7 @@ make it more error cautious
 add mail content security analyse before processing+
 add rerun button
 add a reset button
-
+make the user able to choose the path for sage formulaires directory path
 
 Execution Safeguards & Timeouts
 File System Access & File Size Limits

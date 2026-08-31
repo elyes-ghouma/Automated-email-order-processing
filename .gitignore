@@ -1,6 +1,7 @@
 .env
-notes.txt
 Vectorys Planification
 xl.csv
 new_mail.json
 venv/
+test.py
+__pycache__/

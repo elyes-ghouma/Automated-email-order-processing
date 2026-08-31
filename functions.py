@@ -10,8 +10,10 @@ from time import sleep
 from copy import copy
 import pandas as pd
 import openpyxl
+import requests
 import imaplib
 import smtplib
+import shutil
 import ollama
 import email
 import json
@@ -19,7 +21,6 @@ import html
 import csv
 import os
 import re
-
 
 
 #--------------------------Initialazing functions-----------------------------
@@ -31,7 +32,7 @@ def init_client(path):
         empty_file(file_path)
 
 
-def set_main_folder_path(path):
+def init_main_folder_path(path, sage_form_dir_path=None):
     parametres=read_json_file("parametres.json")
     
     parametres["paths"]["main_directory_path"]=create_directory(path,"Vectorys Planification")
@@ -40,6 +41,11 @@ def set_main_folder_path(path):
 
     parametres["paths"]["excel_files_directory_path"]=create_directory(parametres["paths"]["main_directory_path"],"Excel Files")
 
+    if sage_form_dir_path==None:
+        parametres["paths"]["sage_forms_directory_path"]=create_directory(parametres["paths"]["main_directory_path"],"Sage_forms")
+    else:
+        parametres["paths"]["sage_forms_directory_path"]=create_directory(sage_form_dir_path,"Sage_forms")
+        
     create_json_file(parametres,"parametres.json")
 
 
@@ -309,12 +315,23 @@ def saisir(msg):
 #---------------------------Agent Start function---------------------------------
 
 
+def force_unload_model(model_name):
+    """
+    Forces immediate model unload from VRAM to flush cache memory.
+    """
+    requests.post(
+        "http://localhost:11434/api/generate",
+        json={"model": model_name, "keep_alive": 0}
+    )
+
+
 def start_ai_agent(model_name,template_path):
     response=ollama.list()
     ok=False
     for m in response['models']:
         if model_name==m['model']:
             model=OllamaLLM(model=model_name,
+                            num_ctx=4096,
                             temperature=0.0,
                             model_kwargs={
                                 "seed":42,
@@ -607,7 +624,7 @@ def add_to_order(order_data,stocker_data):
 
 def repair_data_dict(corrupt_data):
     data={
-        "local_mail_id":None,
+        "local_mail_id": None,
         "is_order_related": False,
         "needs_human_interferance": True,
         "interferance_reason": None,
@@ -616,7 +633,9 @@ def repair_data_dict(corrupt_data):
         "is_registered": False,
         "order_type": None,
         "urgency": None,
-        "raw_notes": None
+        "raw_notes": None,
+        "etat": None,
+        "sage_form_path": None
     }
     for key in data.keys():
         data[key]=corrupt_data.get(key,data[key])
@@ -722,7 +741,7 @@ def remplir_excel(order_data,order_path):
 
     sheet3 = wb["Int_Livr"]
     cols3_1=["B","C","D","I","N","P","Q"]
-    cols3_2=["C","H","M","N","O","P","Q","R","S","T","U"]
+    cols3_2=["A","C","H","M","N","O","P","Q","R","S","T","U"]
 
     for i in range(len(data1)):
         sheet3[cols3_1[i]+"1"]=data1[i]
@@ -730,17 +749,22 @@ def remplir_excel(order_data,order_path):
     i=2
     for line in detail_data:
         data2=[
+            "D",
             line.get("Réf SAGEM",None),
             line.get("Qté à commander (en UC)",None)
         ]
         for j in range(len(cols3_2)):
-            if j<2:
+            if cols3_2[j]<"M":
                 sheet3[cols3_2[j]+str(i)]=data2[j]
             else:
                 sheet3[cols3_2[j]+str(i)]=0
         i+=1
 
-    wb.save(order_path+"/"+"sage_form"+str(order_id)+".xlsm")
+    sage_form_path=order_path+"/"+"sage_form"+str(order_id)+".xlsm" 
+
+    wb.save(sage_form_path)
+
+    return sage_form_path
 
 
 def create_data_files(order_id,e,path): 
@@ -859,7 +883,7 @@ def process_order(e,mail_obj,data,order_dir_path):
                 create_data_files(data["local_order_id"],e,order_dir_path)
                 stocker_data=stocker_details(data.get("company",""),data.get("stockeur",""),parametres["paths"]["main_directory_path"])
                 data=add_to_order(data,stocker_data)
-                remplir_excel(data,order_dir_path)
+                data["sage_form_path"]=remplir_excel(data,order_dir_path)
                 if parametres.get("auto_reply",False)==True:
                     reply_to_mail(e["mail_id"],mail_obj)
                 e["etat"]="Done"
@@ -910,7 +934,7 @@ def analyse_order(e, mail_obj, data):
         parametres["next_local_order_id"]=data["local_order_id"]+1
         create_json_file(parametres,"parametres.json")
         
-        order_directory_path=create_directory(parametres["paths"]["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))+"/"
+        order_directory_path=create_directory(parametres["paths"]["orders_directory_path"],"Order"+str(data["local_order_id"])+"_"+normalize_to_ddmmyy(e["Date"]))
 
         if data.get("needs_human_interferance",True)==True:
             e["etat"]="Must review"
@@ -929,7 +953,7 @@ def analyse_order(e, mail_obj, data):
 
     append_jsonl_file(e,parametres["paths"]["main_directory_path"]+"/"+"all_mails.jsonl")
 
-    print(data.get("etat","No data status"))
+    return data
 
 
 def process_new_mail(chain,mail_obj,mail_id):
@@ -938,7 +962,8 @@ def process_new_mail(chain,mail_obj,mail_id):
     e=read_json_file("new_mail.json")
     data=analyse_mail(e,chain)   
     data=repair_data_dict(data)
-    analyse_order(e,mail_obj,data)
+    data=analyse_order(e,mail_obj,data)
+    return data.get("etat"), data.get("sage_form_path")
 
 
 def process_old_mail(parametres,mail_obj,mail_id):
@@ -953,6 +978,7 @@ def process_old_mail(parametres,mail_obj,mail_id):
     append_jsonl_file(e,parametres["paths"]["main_directory_path"]+"/"+"all_mails.jsonl")
     empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_mail.json"))
     empty_file(os.path.join(parametres["paths"]["main_directory_path"],"temp_order.json"))
+    return data.get("etat"), data.get("sage_form_path")
 
 
 #--------------------------Mains-------------------------
@@ -984,14 +1010,19 @@ def main():
         if len(ids)>0:
             for id in ids:
                 if is_mail_flagged(id,mail):
-                    process_old_mail(parametres,mail,id)
+                    etat,file_path=process_old_mail(parametres,mail,id)
                 else:
-                    process_new_mail(chain,mail,id)
+                    etat,file_path=process_new_mail(chain,mail,id)
+
+                if etat=="Ready for WMS":
+                    shutil.copy(file_path,parametres["paths"]["sage_forms_directory_path"])
+
+                force_unload_model(parametres["model"])
 
                 print()
 
                 parametres=read_json_file("parametres.json")
-                if parametres.get("fast_stop",False)==True:
+                if parametres.get("fast_stop",False)==True:     
                     break
                 else:
                     sleep(parametres["delay"])
