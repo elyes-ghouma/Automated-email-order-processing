@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 # Initialize persistent session states
-default_dir = os.path.join(os.path.expanduser("~"), "Desktop/Projet_Planification")
+default_dir = os.path.join(os.path.expanduser("~"), "Desktop")
 if "work_folder" not in st.session_state:
     st.session_state["work_folder"] = default_dir
 
@@ -91,6 +91,7 @@ with st.sidebar:
         parametres = read_json_file("parametres.json")
         path = parametres["paths"]["main_directory_path"]
         st.caption(f"Active Path: `{path}`")
+        
     check_temp_files()
 
     st.markdown("---")

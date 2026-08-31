@@ -684,7 +684,7 @@ def update_order(path,data):
             
 def remplir_excel(order_data,order_path):
     parametres=read_json_file("parametres.json")
-    wb = openpyxl.load_workbook(parametres["paths"]["sage_form_template.xlsm"],keep_vba=True)
+    wb = openpyxl.load_workbook(parametres["paths"]["sage_form_template"],keep_vba=True)
 
     order_id=order_data["local_order_id"]
 
