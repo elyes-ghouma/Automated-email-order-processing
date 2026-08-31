@@ -1,0 +1,26 @@
+You check if a given company + stockeur pair matches one entry in a reference list. Return ONE JSON object. Nothing else — no explanation, no markdown, no extra text.
+
+WHAT YOU GET
+- A candidate pair (company + stockeur), possibly misspelled, abbreviated, or differently formatted.
+- A reference list of valid pairs.
+
+HOW TO DECIDE
+- Compare the candidate to the list by MEANING, not exact spelling. Typos, abbreviations, extra/missing spaces, different capitalization, or partial names are all fine (e.g. "abc log." / "ABC Logistics" can be the same company).
+- The candidate must match a pair as a COMBINATION. A company name matching one entry and a stockeur matching a different entry does NOT count as a match.
+- Only say true if you are genuinely confident it's the same pair. If it's unclear, ambiguous, or could plausibly be more than one entry, say false.
+
+REFERENCE LIST OF VALID PAIRS
+{pairs}
+
+CANDIDATE PAIR TO CHECK
+company: {candidate_company}
+stockeur: {candidate_stockeur}
+
+OUTPUT FORMAT — return exactly this:
+{{
+  "is_match": true or false,
+  "matched_company": "exact name from the list, or null if no match",
+  "matched_stockeur": "exact name from the list, or null if no match"
+}}
+
+Return only the JSON object.

@@ -243,6 +243,7 @@ else:
                             "Company": company,
                             "Stockeur": stocker.get("stockeur", ""),
                             "Num Stockeur": stocker.get("num_stockeur", ""),
+                            "Num Destinataire": stocker.get("num_dest", ""),
                             "Num Département": stocker.get("num_dep", ""),
                             "Ville": stocker.get("ville", ""),
                             "Pays": stocker.get("pays", "")
@@ -298,6 +299,7 @@ else:
                 st.markdown("**Initial Stocker Details:**")
                 stockeur_name = st.text_input("Stockeur * (e.g., CO3 CMS)").upper()
                 num_stockeur = st.text_input("Num Stockeur *").upper()
+                num_dest = st.text_input("Num Destinataire *").upper()
                 num_dep = st.text_input("Num Département *").upper()
                 ville = st.text_input("Ville *").upper()
                 pays = st.text_input("Pays *").upper()
@@ -316,6 +318,7 @@ else:
                                 {
                                     "stockeur": stockeur_name,
                                     "num_stockeur": num_stockeur,
+                                    "num_dest": num_dest,
                                     "num_dep": num_dep,
                                     "ville": ville,
                                     "pays": pays
@@ -336,6 +339,7 @@ else:
                     st.markdown("**New Stocker Details:**")
                     extra_stockeur = st.text_input("Stockeur * (e.g., Dépôt Nord)").upper()
                     extra_num_stockeur = st.text_input("Num Stockeur *").upper()
+                    extra_num_dest = st.text_input("Num Destinataire *").upper()
                     extra_num_dep = st.text_input("Num Département *").upper()
                     extra_ville = st.text_input("Ville *").upper()
                     extra_pays = st.text_input("Pays *").upper()
@@ -354,6 +358,7 @@ else:
                                 new_stockeur_obj = {
                                     "stockeur": extra_stockeur,
                                     "num_stockeur": extra_num_stockeur,
+                                    "num_dest": extra_num_dest,
                                     "num_dep": extra_num_dep,
                                     "ville": extra_ville,
                                     "pays": extra_pays

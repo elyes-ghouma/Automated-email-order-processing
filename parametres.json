@@ -1,1 +1,11 @@
-{"paths": {"mail_reader_template": "templates/mail_template.txt", "xls_reader_template": "templates/excel_template.txt", "sage_form_template": "templates/sage_form_template.xlsm", "main_directory_path": "C:\\Users\\ELITE\\Desktop/Vectorys Planification", "orders_directory_path": "C:\\Users\\ELITE\\Desktop/Vectorys Planification/Orders", "excel_files_directory_path": "C:\\Users\\ELITE\\Desktop/Vectorys Planification/Excel Files", "sage_forms_directory_path": "C:\\Users\\ELITE\\Desktop/Vectorys Planification/Sage_forms"}, "delay": 5, "auto_reply": false, "model": "qwen3:14b", "fast_stop": false, "slow_stop": true, "next_local_mail_id": 7, "next_local_order_id": 5}
+{
+  "paths": {
+    "mail_reader_template": "templates/mail_template.txt",
+    "pair_match_template": "templates/pair_match_template.txt",
+    "xls_reader_template": "templates/excel_template.txt",
+    "sage_form_template": "templates/sage_form_template.xlsm"
+  },
+  "delay": 5,
+  "auto_reply": false,
+  "model": "qwen3:14b"
+}

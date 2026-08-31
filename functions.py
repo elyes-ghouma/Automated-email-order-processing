@@ -9,6 +9,7 @@ from dateutil import parser
 from time import sleep
 from copy import copy
 import pandas as pd
+import subprocess
 import openpyxl
 import requests
 import imaplib
@@ -601,21 +602,22 @@ def stocker_details(company, stocker_name, path):
             break
     if not company_found:
         print("Company",company,"is not found!")
-        return None,None,None,None
+        return None,None,None,None,None
     
     for stockeur in client["stockeurs"]:
         if stockeur["stockeur"].upper()==stocker_name.upper():
-            return stockeur["num_stockeur"],stockeur["num_dep"],stockeur["ville"],stockeur["pays"]
+            return stockeur["num_stockeur"],stockeur["num_dest"],stockeur["num_dep"],stockeur["ville"],stockeur["pays"]
 
     print("Error: Company and stocker couple is invalide ")
-    return None,None,None,None
+    return None,None,None,None,None
 
 
 def add_to_order(order_data,stocker_data):
     order_data["num_stockeur"]=stocker_data[0]
-    order_data["num_dep"]=stocker_data[1]
-    order_data["ville"]=stocker_data[2]
-    order_data["pays"]=stocker_data[3]
+    order_data["num_dest"]=stocker_data[1]
+    order_data["num_dep"]=stocker_data[2]
+    order_data["ville"]=stocker_data[3]
+    order_data["pays"]=stocker_data[4]
     return order_data
 
 
@@ -628,8 +630,8 @@ def repair_data_dict(corrupt_data):
         "is_order_related": False,
         "needs_human_interferance": True,
         "interferance_reason": None,
-        "company": None,
-        "stockeur": None,
+        "company": "",
+        "stockeur": "",
         "is_registered": False,
         "order_type": None,
         "urgency": None,
@@ -639,6 +641,23 @@ def repair_data_dict(corrupt_data):
     }
     for key in data.keys():
         data[key]=corrupt_data.get(key,data[key])
+
+    if data["is_order_related"]==True:
+        if data["order_type"] not in ["new_order", "update_order", "cancel_order"]:
+            data["order_type"]="new_order"
+    if data["is_registered"]==False:
+        parametres=read_json_file("parametres.json")
+        chain=start_ai_agent(parametres["model"],parametres["paths"]["pair_match_template"])
+        result=chain.invoke({"pairs":clients_stockers_pairs_text(parametres["paths"]["main_directory_path"]),"candidate_company":data["company"],"candidate_stockeur":data["stockeur"]})
+        res=json_to_dict(result)
+        if res.get("is_match",False):
+            data["company"]=res.get("matched_company","")
+            data["stockeur"]=res.get("matched_stockeur","")
+            data["is_registered"]=True
+            data["needs_human_interferance"]=False # Need to know the exact interferance reason
+    else:
+        data["needs_human_interferance"]=False # Need to know the exact interferance reason
+        
     return data
     
 
@@ -763,6 +782,8 @@ def remplir_excel(order_data,order_path):
     sage_form_path=order_path+"/"+"sage_form"+str(order_id)+".xlsm" 
 
     wb.save(sage_form_path)
+
+    subprocess.run(["powershell", "-Command", f"Unblock-File -Path '{sage_form_path}'"], shell=True)
 
     return sage_form_path
 
