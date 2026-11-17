@@ -1002,8 +1002,6 @@ def process_old_mail(parametres,mail_obj,mail_id):
     return data.get("etat"), data.get("sage_form_path")
 
 
-#--------------------------Mains-------------------------
-
 #--------------------------Main--------------------------
 
 
@@ -1057,96 +1055,4 @@ def main():
     log_out(mail)
 
     print("END.")
-
-
-#--------------------------Web Functions-----------------
-
-
-def affiche_html(text,element):
-    pre="<"+element+">"
-    post="</"+element+">"
-    return pre+text+post
-
-
-def download():
-    if os.path.exists("orders.csv"):
-        return send_file(
-            "orders.csv",
-            mimetype="text/csv",
-            as_attachment=True,  # Forces browser to download instead of opening in tab
-            download_name="orders.csv",  # Optional: file name the user sees
-        )
-    else:
-        return "<h3>Error: CSV file not found!</h3>", 404
-
-
-#--------------------------Web Main----------------------
-
-
-def web_main(): # a reconstruire
-    yield affiche_html("RUNNING...","h2")
-
-    parametres=read_json_file("parametres.json")
-
-    if parametres.get("model",False)==False:
-        print("Error: No model chosen!")
-        os._exit(1)
-    chain =start_ai_agent(parametres["model"],parametres["paths"]["xls_reader_template"])
-
-    yield affiche_html("Logging in...","h2")
-    mail=log_in()
-
-    while parametres.get("slow_stop",False)==False:
-        yield affiche_html("Listening for emails...","h2")
-        ids=extract_mail_ids(mail)
-        yield affiche_html(str(len(ids))+" emails has been found.","h2")
-        if len(ids)>0:
-            c=0
-            for i in ids:
-                c+=1
-
-                mail_extractor(i,mail,"new_mail.json")
-                yield affiche_html("email "+str(c)+" has been extracted.","h2")
-
-                e=read_json_file("new_mail.json")
-
-                sender=e.get("From",None)
-                reciever=e.get("To",None)
-                subject=e.get("Subject",None)
-                date_time=e.get("Date",None)
-                body=e.get("Body",None)
-
-                result = chain.invoke({"local_order_id":"null","mail_id":e["mail_id"],"sender":sender,"reciever":reciever,"subject":subject,"date_time":date_time,"email_text": body})
-
-                data=json_to_dict(result)
-                if data.get("is_order_related",False):
-                    parametres=read_json_file("parametres.json")
-                    data["local_order_id"]=parametres.get("next_local_order_id",1)
-                    parametres["next_local_order_id"]=data["local_order_id"]+1
-                    create_json_file(parametres,"parametres.json")
-                    append_jsonl_file(data,"orders.jsonl")
-                    append_json_to_csv(data,"orders.csv")
-                    if data["needs_human_review"]:
-                        append_jsonl_file(e,"pending_mails.jsonl")
-                        yield affiche_html(flag_mail(i,mail),"h2")
-                    else:
-                        append_jsonl_file(e,"mails.jsonl")
-                        if parametres.get("auto_reply",False):
-                            yield affiche_html(reply_to_mail(i),"h2")
-                else:
-                    append_jsonl_file(data,"non_orders.jsonl")#maindir
-                    append_json_to_csv(data,"non_orders.csv")#maindir
-                    yield affiche_html(flag_mail(i,mail),"h2")
-
-                yield affiche_html("email analyse finished and data stored in data.jsonl.","h2")
-                yield affiche_html("","hr")
-
-        sleep(5)
-        parametres=read_json_file("parametres.json")
-
-    log_out(mail)
-
-    yield affiche_html("END.","h2")
-
-    yield affiche_html("<a href='/download'>Download-link</a>","p")
 

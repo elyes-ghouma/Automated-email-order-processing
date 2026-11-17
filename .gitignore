@@ -5,3 +5,4 @@ new_mail.json
 venv/
 test.py
 __pycache__/
+notes.txt
